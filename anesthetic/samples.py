@@ -471,9 +471,12 @@ class NestedSamples(MCMCSamples):
 
     def __init__(self, *args, **kwargs):
         root = kwargs.pop('root', None)
+        phantoms=kwargs.pop("phantoms",False)
         if root is not None:
             reader = SampleReader(root)
             samples, logL, logL_birth = reader.samples()
+            if phantoms:
+                samples,logL,logL_birth = reader.phantoms()
             params, tex = reader.paramnames()
             columns = kwargs.pop('columns', params)
             limits = reader.limits()
