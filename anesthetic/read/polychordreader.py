@@ -24,9 +24,9 @@ class PolyChordReader(GetDistReader):
     def phantoms(self):
         """Read ``<phantom_dir>/<root>_<iteration_no>.txt`` in polychord format."""
         phantoms=[]
-        phantom_dir=os.path.join(self.root.split("/")[0],"phantoms")
-        for phantom_file in os.listdir(phantom_dir):
-            data = np.loadtxt(os.path.join(phantom_dir,phantom_file))
+        phantoms_dir=os.path.join("/".join(self.root.split("/")[:-1]),"phantoms")
+        for phantom_file in os.listdir(phantoms_dir):
+            data = np.loadtxt(os.path.join(phantoms_dir,phantom_file))
             if not data.any():
                 continue
             np.atleast_2d(data)
