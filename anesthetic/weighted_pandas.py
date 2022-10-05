@@ -76,7 +76,7 @@ class _WeightedObject(object):
             names.insert(level, 'weights')
 
             index = MultiIndex.from_arrays(index, names=names)
-            result.set_axis(index, axis=axis, inplace=True)
+            result = result.set_axis(index, axis=axis, copy=False)
 
         if inplace:
             self._update_inplace(result)
@@ -350,14 +350,42 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         return np.sqrt(self.var(axis=axis, skipna=skipna)/n)
 
     def quantile(self, q=0.5, axis=0, numeric_only=True,
-                 interpolation='linear'):
-        """Weighted quantile of the sampled distribution."""
+                 interpolation='linear', method="single"):
+        """
+        Weighted quantile of the sampled distribution.
+
+        Parameters
+        ----------
+        q : float or array-like, default 0.5 (50% quantile)
+            Value between 0 <= q <= 1, the quantile(s) to compute.
+        axis : {0 or 'index', 1 or 'columns'}, default 0
+            Equals 0 or 'index' for row-wise, 1 or 'columns' for column-wise.
+        numeric_only : bool, default True
+            If False, the quantile of datetime and timedelta data will be
+            computed as well.
+            .. deprecated:: 1.5.0
+                The default value of ``numeric_only`` will be ``False`` in a
+                future version of pandas.
+        interpolation : {'linear', 'lower', 'higher', 'midpoint', 'nearest'}
+            This optional parameter specifies the interpolation method to use,
+            when the desired quantile lies between two data points `i` and `j`:
+            * linear: `i + (j - i) * fraction`, where `fraction` is the
+              fractional part of the index surrounded by `i` and `j`.
+            * lower: `i`.
+            * higher: `j`.
+            * nearest: `i` or `j` whichever is nearest.
+            * midpoint: (`i` + `j`) / 2.
+        method : {'single', 'table'}, default 'single'
+            Whether to compute quantiles per-column ('single') or over all
+            columns ('table'). When 'table', the only allowed interpolation
+            methods are 'nearest', 'lower', and 'higher'.
+        """
         if not numeric_only:
             raise NotImplementedError("numeric_only kwarg not implemented")
         if self.isweighted(axis):
             data = np.array([c.quantile(q, interpolation=interpolation,
                                         numeric_only=numeric_only)
-                             for _, c in self.iteritems()])
+                             for _, c in self.items()])
             if np.isscalar(q):
                 return self._constructor_sliced(data,
                                                 index=self._get_axis(1-axis))
@@ -366,7 +394,7 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
                                          columns=self._get_axis(1-axis))
         else:
             return super().quantile(q=q, axis=axis, numeric_only=numeric_only,
-                                    interpolation=interpolation)
+                                    interpolation=interpolation, method=method)
 
     def compress(self, ncompress=True, axis=0):
         """Reduce the number of samples by discarding low-weights.
@@ -385,8 +413,8 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
             data = np.repeat(self.to_numpy(), i, axis=axis)
             i = self.drop_weights(axis)._get_axis(axis).repeat(i)
             df = self._constructor(data=data)
-            df.set_axis(i, axis=axis, inplace=True)
-            df.set_axis(self._get_axis(1-axis), axis=1-axis, inplace=True)
+            df = df.set_axis(i, axis=axis, copy=False)
+            df = df.set_axis(self._get_axis(1-axis), axis=1-axis, copy=False)
             return df
         else:
             return self
