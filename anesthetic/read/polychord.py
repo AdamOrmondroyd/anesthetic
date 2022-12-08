@@ -43,7 +43,7 @@ def read_polychord(root, *args, **kwargs):
         data = data[i, :]
     except IOError:
         pass
-    data, logL, logL_birth, cluster_labels = np.split(data, [-3, -2, -1], axis=1)
+    data, logL, logL_birth = np.split(data, [-2, -1], axis=1)
     params, labels = read_paramnames(root)
 
     columns = kwargs.pop('columns', params)
@@ -51,4 +51,35 @@ def read_polychord(root, *args, **kwargs):
 
     return NestedSamples(data=data, columns=columns,
                          logL=logL, logL_birth=logL_birth,
+                         labels=labels, root=root, *args, **kwargs)
+
+
+def read_polychord_cluster(root, *args, **kwargs):
+    """Read ``<root>_dead-birth-cluster.txt`` in polychord format."""
+    birth_file = root + '_dead-birth-cluster.txt'
+    birth_file
+    data = np.loadtxt(birth_file)
+    # drop cluster as these are ints
+    # data = data[:,:-1]
+    try:
+        phys_live_birth_file = root + '_phys_live-birth-cluster.txt'
+        _data = np.loadtxt(phys_live_birth_file)
+        _data = np.atleast_2d(_data)
+        data = np.concatenate([data, _data]) if _data.size else data
+        data = np.unique(data, axis=0)
+        i = np.argsort(data[:, -2])
+        data = data[i, :]
+    except IOError:
+        pass
+    data, logL, logL_birth, cluster = np.split(data, [-3, -2, -1], axis=1)
+    cluster = cluster.astype(int)
+    print(cluster)
+    print(len(cluster))
+    params, labels = read_paramnames(root)
+
+    columns = kwargs.pop('columns', params)
+    kwargs['label'] = kwargs.get('label', os.path.basename(root))
+
+    return NestedSamples(data=data, columns=columns,
+                         logL=logL, logL_birth=logL_birth, cluster=cluster,
                          labels=labels, root=root, *args, **kwargs)
