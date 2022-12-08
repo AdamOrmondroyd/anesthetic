@@ -1,5 +1,5 @@
 """Read MCMCSamples or NestedSamples from any chains."""
-from anesthetic.read.polychord import read_polychord
+from anesthetic.read.polychord import read_polychord, read_polychord_cluster
 from anesthetic.read.getdist import read_getdist
 from anesthetic.read.cobaya import read_cobaya
 from anesthetic.read.multinest import read_multinest
@@ -32,7 +32,7 @@ def read_chains(root, *args, **kwargs):
 
     """
     errors = []
-    for read in [read_polychord, read_multinest, read_cobaya, read_getdist]:
+    for read in [read_polychord_cluster, read_polychord, read_multinest, read_cobaya, read_getdist]:
         try:
             return read(root, *args, **kwargs)
         except (FileNotFoundError, IOError) as e:
