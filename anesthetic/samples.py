@@ -470,6 +470,9 @@ class NestedSamples(Samples):
     logL_birth: np.array or int
         birth loglikelihoods, or number of live points.
 
+    cluster: np.array
+        cluster numbers, in the left-child right-sibling format
+
     labels: dict
         optional mapping from column names to plot labels
 
@@ -495,6 +498,7 @@ class NestedSamples(Samples):
         logzero = kwargs.pop('logzero', -1e30)
         self._beta = kwargs.pop('beta', 1.)
         logL_birth = kwargs.pop('logL_birth', None)
+        cluster = kwargs.pop('cluster', None)
         if not isinstance(logL_birth, int) and logL_birth is not None:
             logL_birth = np.array(logL_birth)
             logL_birth = np.where(logL_birth <= logzero, -np.inf,
@@ -503,6 +507,12 @@ class NestedSamples(Samples):
         super().__init__(logzero=logzero, *args, **kwargs)
         if logL_birth is not None:
             self.recompute(logL_birth, inplace=True)
+
+        print(self)
+        if cluster is not None:
+            self['cluster'] = cluster
+            if self.islabelled():
+                self.set_label('cluster', r'$i_\textrm{cluster}$')
 
     @property
     def _constructor(self):
