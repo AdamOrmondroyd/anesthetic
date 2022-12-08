@@ -4,6 +4,29 @@ import numpy as np
 from anesthetic.read.getdist import read_paramnames
 from anesthetic.samples import NestedSamples
 
+def get_parents(cluster_label):
+    """list of parent clusters of cluster_label, including cluster_label"""
+    parents = [cluster_label]
+    left_step_back = False
+    while cluster_label > 1:
+        print(cluster_label)
+        if 0==cluster_label%2:
+            left_step_back = True
+        cluster_label //= 2
+        print(left_step_back)
+        if left_step_back: parents.append(cluster_label)
+        left_step_back = False
+
+    return parents
+
+def get_clusters(cluster_labels):
+    """Identify cluster labels from samples"""
+    cluster_labels = set(cluster_labels)
+    parents = {}
+    for cluster_label in cluster_labels:
+        parents[cluster_label]
+    ## Unfinished
+        
 
 def read_polychord(root, *args, **kwargs):
     """Read ``<root>_dead-birth.txt`` in polychord format."""
@@ -20,7 +43,7 @@ def read_polychord(root, *args, **kwargs):
         data = data[i, :]
     except IOError:
         pass
-    data, logL, logL_birth = np.split(data, [-2, -1], axis=1)
+    data, logL, logL_birth, cluster_labels = np.split(data, [-3, -2, -1], axis=1)
     params, labels = read_paramnames(root)
 
     columns = kwargs.pop('columns', params)
