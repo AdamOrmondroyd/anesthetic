@@ -508,7 +508,6 @@ class NestedSamples(Samples):
         if logL_birth is not None:
             self.recompute(logL_birth, inplace=True)
 
-        print(self)
         if cluster is not None:
             self['cluster'] = cluster
             if self.islabelled():
