@@ -4,28 +4,18 @@ import numpy as np
 from anesthetic.read.getdist import read_paramnames
 from anesthetic.samples import NestedSamples
 
-def get_parents(cluster_label):
-    """list of parent clusters of cluster_label, including cluster_label"""
-    parents = [cluster_label]
-    left_step_back = False
-    while cluster_label > 1:
-        print(cluster_label)
-        if 0==cluster_label%2:
-            left_step_back = True
-        cluster_label //= 2
-        print(left_step_back)
-        if left_step_back: parents.append(cluster_label)
-        left_step_back = False
-
-    return parents
-
-def get_clusters(cluster_labels):
-    """Identify cluster labels from samples"""
-    cluster_labels = set(cluster_labels)
-    parents = {}
-    for cluster_label in cluster_labels:
-        parents[cluster_label]
-    ## Unfinished
+def read_cluster_tree(root, cluster_column):
+    """Read the cluster tree"""
+    cluster_tree_file = root + '_cluster_tree.txt'
+    print(cluster_tree_file)
+    data = np.loadtxt(cluster_tree_file)
+    clusters = np.unique(cluster_column)
+    parent = {}
+    for cluster_number in np.unique(cluster_column):
+        if 0 == cluster_number:
+            parent[cluster_number] = None
+        parent[cluster_number] = data[cluster_number-1]
+    return parent
         
 
 def read_polychord(root, *args, **kwargs):
@@ -59,27 +49,42 @@ def read_polychord_cluster(root, *args, **kwargs):
     birth_file = root + '_dead-birth-cluster.txt'
     birth_file
     data = np.loadtxt(birth_file)
-    # drop cluster as these are ints
-    # data = data[:,:-1]
+    # drop cluster column as these are ints
+    data = data[:,:-1]
+
+    cluster = np.loadtxt(birth_file, usecols=-1, dtype=int)
+
     try:
         phys_live_birth_file = root + '_phys_live-birth-cluster.txt'
         _data = np.loadtxt(phys_live_birth_file)
         _data = np.atleast_2d(_data)
+        # drop cluster column
+        _data = _data[:, :-1]
+
+        _cluster = np.loadtxt(phys_live_birth_file, usecols=-1, dtype=int)
+
         data = np.concatenate([data, _data]) if _data.size else data
-        data = np.unique(data, axis=0)
-        i = np.argsort(data[:, -2])
-        data = data[i, :]
+        data, unique_idx = np.unique(data, axis=0, return_index=True)
+
+        cluster = np.concatenate([cluster, _cluster]) if _cluster.size else data
+        cluster = cluster[unique_idx]
+
+        sorted_idx = np.argsort(data[:, -2])
+        data = data[sorted_idx, :]
+        cluster = cluster[sorted_idx]
     except IOError:
         pass
-    data, logL, logL_birth, cluster = np.split(data, [-3, -2, -1], axis=1)
-    cluster = cluster.astype(int)
-    print(cluster)
-    print(len(cluster))
+    data, logL, logL_birth = np.split(data, [-2, -1], axis=1)
     params, labels = read_paramnames(root)
 
     columns = kwargs.pop('columns', params)
     kwargs['label'] = kwargs.get('label', os.path.basename(root))
 
-    return NestedSamples(data=data, columns=columns,
+    ns = NestedSamples(data=data, columns=columns,
                          logL=logL, logL_birth=logL_birth, cluster=cluster,
                          labels=labels, root=root, *args, **kwargs)
+
+    parent = read_cluster_tree(root, cluster)
+    print(parent)
+    
+    return ns
