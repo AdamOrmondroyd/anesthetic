@@ -31,7 +31,7 @@ class _WeightedMPLPlot(MPLPlot):
 
     @property
     def legend_title(self):
-        if isinstance(self.data, _WeightedObject): return None
+        if isinstance(self.data, ABCMultiIndex): return None
         return super().legend_title()
 
     def _make_legend(self) -> None:
