@@ -29,6 +29,23 @@ class _WeightedMPLPlot(MPLPlot):
         _get_weights(kwargs, data)
         super().__init__(data, *args, **kwargs)
 
+    @property
+    def legend_title(self):
+        if isinstance(self.data, _WeightedObject): return None
+        return super().legend_title()
+
+    def _make_legend(self) -> None:
+        if not self.subplots:
+            if isinstance(self.data, _WeightedObject):
+                self.legend_labels = list(self.data.columns.get_level_values(1))
+            print("here")
+            return super()._make_legend()
+        elif self.subplots and self.legend:
+            for ax, label in zip(self.axes, list(self.data.columns.get_level_values(1))):
+                if ax.get_visible():
+                    ax.legend(labels=[label], loc="best")
+
+
     def _get_index_name(self):
         if isinstance(self.data, _WeightedObject):
             if isinstance(self.data.drop_weights().index, ABCMultiIndex):
