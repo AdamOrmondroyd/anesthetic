@@ -35,7 +35,7 @@ class _WeightedMPLPlot(MPLPlot):
         return super().legend_title()
 
     def _make_legend(self) -> None:
-        if isinstance(self.data, _WeightedObject):
+        if isinstance(self.data.columns, ABCMultiIndex):
             latex = list(self.data.columns.get_level_values(1))
             if self.subplots and self.legend:
                 for ax, label in zip(self.axes, latex):
