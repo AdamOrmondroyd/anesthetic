@@ -35,15 +35,16 @@ class _WeightedMPLPlot(MPLPlot):
         return super().legend_title()
 
     def _make_legend(self) -> None:
-        if not self.subplots:
-            if isinstance(self.data, _WeightedObject):
-                self.legend_labels = list(self.data.columns.get_level_values(1))
-            print("here")
-            return super()._make_legend()
-        elif self.subplots and self.legend:
-            for ax, label in zip(self.axes, list(self.data.columns.get_level_values(1))):
-                if ax.get_visible():
-                    ax.legend(labels=[label], loc="best")
+        if isinstance(self.data, _WeightedObject):
+            latex = list(self.data.columns.get_level_values(1))
+            if self.subplots and self.legend:
+                for ax, label in zip(self.axes, latex):
+                    if ax.get_visible():
+                        ax.legend(labels=[label], loc="best")
+                return
+            elif not self.subplots:
+                self.legend_labels = latex
+        return super()._make_legend()
 
 
     def _get_index_name(self):
