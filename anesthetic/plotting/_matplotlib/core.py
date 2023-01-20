@@ -32,9 +32,10 @@ class _WeightedMPLPlot(MPLPlot):
     @property
     def legend_title(self):
         if isinstance(self.data, ABCMultiIndex): return None
-        return super().legend_title()
+        return super().legend_title
 
     def _make_legend(self) -> None:
+        # TODO: validate the columns more carefully
         if isinstance(self.data.columns, ABCMultiIndex):
             latex = list(self.data.columns.get_level_values(1))
             if self.subplots and self.legend:
