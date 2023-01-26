@@ -21,7 +21,7 @@ jobs:
     - name: Upgrade pip and install linters
       run: |
         python -m pip install --upgrade pip
-        python -m pip install black pydocstyle
+        python -m pip install "black[jupyter]" pydocstyle
     - name: flake8 PEP compliance checks
       run: python -m black anesthetic tests --check
     - name: pydocstyle documentation style checks
