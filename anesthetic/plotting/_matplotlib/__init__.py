@@ -1,11 +1,11 @@
 """anesthetic override of matplotlib backend for weighted samples."""
 from pandas.plotting._matplotlib import (  # noqa: F401
-        PLOT_CLASSES,
-        __name__,
-        __all__,
-        plot,
-        register,
-        deregister
+    PLOT_CLASSES,
+    __name__,
+    __all__,
+    plot,
+    register,
+    deregister,
 )
 from anesthetic.plotting._matplotlib.boxplot import (  # noqa: F401
     BoxPlot,
@@ -59,10 +59,10 @@ PLOT_CLASSES["pie"] = PiePlot
 PLOT_CLASSES["scatter"] = ScatterPlot
 PLOT_CLASSES["hexbin"] = HexBinPlot
 
-PLOT_CLASSES['hist_1d'] = Hist1dPlot
-PLOT_CLASSES['kde_1d'] = Kde1dPlot
-PLOT_CLASSES['fastkde_1d'] = FastKde1dPlot
-PLOT_CLASSES['hist_2d'] = Hist2dPlot
-PLOT_CLASSES['kde_2d'] = Kde2dPlot
-PLOT_CLASSES['fastkde_2d'] = FastKde2dPlot
-PLOT_CLASSES['scatter_2d'] = ScatterPlot2d
+PLOT_CLASSES["hist_1d"] = Hist1dPlot
+PLOT_CLASSES["kde_1d"] = Kde1dPlot
+PLOT_CLASSES["fastkde_1d"] = FastKde1dPlot
+PLOT_CLASSES["hist_2d"] = Hist2dPlot
+PLOT_CLASSES["kde_2d"] = Kde2dPlot
+PLOT_CLASSES["fastkde_2d"] = FastKde2dPlot
+PLOT_CLASSES["scatter_2d"] = ScatterPlot2d

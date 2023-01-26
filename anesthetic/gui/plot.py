@@ -1,10 +1,15 @@
 """Main plotting tools."""
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import (GridSpec as GS,
-                                 GridSpecFromSubplotSpec as sGS)
-from anesthetic.gui.widgets import (Widget, Slider, Button,
-                                    RadioButtons, TrianglePlot, CheckButtons)
+from matplotlib.gridspec import GridSpec as GS, GridSpecFromSubplotSpec as sGS
+from anesthetic.gui.widgets import (
+    Widget,
+    Slider,
+    Button,
+    RadioButtons,
+    TrianglePlot,
+    CheckButtons,
+)
 
 
 class Higson(Widget):
@@ -24,11 +29,11 @@ class Higson(Widget):
         super().__init__(fig, gridspec)
         self.ax.set_yticks([])
         self.ax.set_ylim(-0.1, 1.1)
-        self.ax.set_ylabel(r'$LX$')
-        self.ax.set_xlabel(r'$\ln X$')
+        self.ax.set_ylabel(r"$LX$")
+        self.ax.set_xlabel(r"$\ln X$")
 
-        self.curve, = self.ax.plot([None], [None], 'k-')
-        self.point, = self.ax.plot([None], [None], 'ko')
+        (self.curve,) = self.ax.plot([None], [None], "k-")
+        (self.point,) = self.ax.plot([None], [None], "ko")
 
     def update(self, logX, LX, i):
         """Update the line and the point in the higson plot.
@@ -61,13 +66,13 @@ class Evolution(Slider):
     """Slider controlling the evolution stage of the live points."""
 
     def __init__(self, fig, gridspec, action, valmax):
-        super().__init__(fig, gridspec, action, '', 0, valmax, 0, 'horizontal')
-        self.slider.valtext.set_horizontalalignment('right')
+        super().__init__(fig, gridspec, action, "", 0, valmax, 0, "horizontal")
+        self.slider.valtext.set_horizontalalignment("right")
         self.slider.valtext.set_position((0.98, 0.5))
 
     def __call__(self):
         """Return the current iteration as an integer."""
-        mx = self.slider.valmax-1
+        mx = self.slider.valmax - 1
         val = int(super().__call__())
         return min(val, mx)
 
@@ -83,7 +88,7 @@ class Evolution(Slider):
                 Current number of live points of evolution stage
 
         """
-        text = r'$\ln L$: %.6g, $n_\mathrm{live}$: %i' % (logL, n)
+        text = r"$\ln L$: %.6g, $n_\mathrm{live}$: %i" % (logL, n)
         return super().set_text(text)
 
 
@@ -91,11 +96,11 @@ class Temperature(Slider):
     """Logarithmic slider controlling temperature of the posterior points."""
 
     def __init__(self, fig, gridspec, action):
-        super().__init__(fig, gridspec, action, r'$kT$', -1, 5, 0, 'vertical')
+        super().__init__(fig, gridspec, action, r"$kT$", -1, 5, 0, "vertical")
 
     def __call__(self):
         """Return the current temperature."""
-        return 10**super().__call__()
+        return 10 ** super().__call__()
 
     def set_text(self, kT):
         """Set the text at end of slider.
@@ -106,7 +111,7 @@ class Temperature(Slider):
                 Current temperature of posterior points stage
 
         """
-        text = r'%.2g' % kT
+        text = r"%.2g" % kT
         return super().set_text(text)
 
 
@@ -199,22 +204,16 @@ class RunPlotter(object):
 
         self.triangle = TrianglePlot(self.fig, gs0[0])
         self.temperature = Temperature(self.fig, gs0[1], self.update)
-        self.evolution = Evolution(self.fig, gs10[0],
-                                   self.update, len(self.samples))
+        self.evolution = Evolution(self.fig, gs10[0], self.update, len(self.samples))
         self.higson = Higson(self.fig, gs10[1])
-        self.reset = Button(self.fig, gs11[0],
-                            self.reset_range, 'Reset Range')
-        self.reload = Button(self.fig, gs11[1],
-                             self.reload_file, 'Reload File')
-        self.type = RadioButtons(self.fig, gs11[2],
-                                 ('live', 'posterior'), self.update)
-        self.param_choice = CheckButtons(self.fig, gs1[2],
-                                         self.params, self.redraw)
+        self.reset = Button(self.fig, gs11[0], self.reset_range, "Reset Range")
+        self.reload = Button(self.fig, gs11[1], self.reload_file, "Reload File")
+        self.type = RadioButtons(self.fig, gs11[2], ("live", "posterior"), self.update)
+        self.param_choice = CheckButtons(self.fig, gs1[2], self.params, self.redraw)
 
     def redraw(self, _):
         """Redraw the triangle plot upon parameter updating."""
-        self.triangle.draw(self.param_choice(),
-                           self.samples.get_labels_map())
+        self.triangle.draw(self.param_choice(), self.samples.get_labels_map())
         self.update(None)
         self.reset_range(None)
         self.fig.tight_layout()
@@ -234,9 +233,9 @@ class RunPlotter(object):
                 sample 'label'-coordinates.
 
         """
-        if self.type() == 'posterior':
+        if self.type() == "posterior":
             kT = self.temperature()
-            return self.samples.posterior_points(1/kT)[label]
+            return self.samples.posterior_points(1 / kT)[label]
         else:
             i = self.evolution()
             logL = self.samples.logL.iloc[i]
@@ -244,10 +243,10 @@ class RunPlotter(object):
 
     def update(self, _):
         """Update all the plots upon slider changes."""
-        logX = np.log(self.samples.nlive / (self.samples.nlive+1)).cumsum()
+        logX = np.log(self.samples.nlive / (self.samples.nlive + 1)).cumsum()
         kT = self.temperature()
-        LX = self.samples.logL/kT + logX
-        LX = np.exp(LX-LX.max())
+        LX = self.samples.logL / kT + logX
+        LX = np.exp(LX - LX.max())
         i = self.evolution()
         logL = self.samples.logL.iloc[i]
         n = self.samples.nlive.iloc[i]
@@ -263,6 +262,7 @@ class RunPlotter(object):
     def reload_file(self, _):
         """Reload the data from file."""
         from anesthetic import read_chains
+
         self.samples = read_chains(self.samples.root)
         self.evolution.reset_range(valmax=len(self.samples))
         self.update(None)

@@ -25,8 +25,9 @@ def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
     if b is None:
         b = np.ones_like(a)
     b = np.where(a == -np.inf, 0, b)
-    return special.logsumexp(a, axis=axis, b=b, keepdims=keepdims,
-                             return_sign=return_sign)
+    return special.logsumexp(
+        a, axis=axis, b=b, keepdims=keepdims, return_sign=return_sign
+    )
 
 
 def channel_capacity(w):
@@ -40,9 +41,9 @@ def channel_capacity(w):
 
         N = e^{-H}
     """
-    with np.errstate(divide='ignore', invalid='ignore'):
-        W = np.array(w)/sum(w)
-        H = np.nansum(np.log(W)*W)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        W = np.array(w) / sum(w)
+        H = np.nansum(np.log(W) * W)
         return np.exp(-H)
 
 
@@ -60,7 +61,7 @@ def compress_weights(w, u=None, ncompress=True):
         return w
 
     if ncompress <= 0:
-        W = w/w.max()
+        W = w / w.max()
     else:
         W = w * ncompress / w.sum()
 
@@ -69,16 +70,16 @@ def compress_weights(w, u=None, ncompress=True):
     return (integer + extra).astype(int)
 
 
-def quantile(a, q, w=None, interpolation='linear'):
+def quantile(a, q, w=None, interpolation="linear"):
     """Compute the weighted quantile for a one dimensional array."""
     if w is None:
         w = np.ones_like(a)
     a = np.array(list(a))  # Necessary to convert pandas arrays
     w = np.array(list(w))  # Necessary to convert pandas arrays
     i = np.argsort(a)
-    c = np.cumsum(w[i[1:]]+w[i[:-1]])
+    c = np.cumsum(w[i[1:]] + w[i[:-1]])
     c = c / c[-1]
-    c = np.concatenate(([0.], c))
+    c = np.concatenate(([0.0], c))
     icdf = interp1d(c, a[i], kind=interpolation)
     quant = icdf(q)
     if isinstance(q, float):
@@ -89,12 +90,12 @@ def quantile(a, q, w=None, interpolation='linear'):
 def mirror_1d(d, xmin=None, xmax=None):
     """If necessary apply reflecting boundary conditions."""
     if xmin is not None and xmax is not None:
-        xmed = (xmin+xmax)/2
-        return np.concatenate((2*xmin-d[d < xmed], d, 2*xmax-d[d >= xmed]))
+        xmed = (xmin + xmax) / 2
+        return np.concatenate((2 * xmin - d[d < xmed], d, 2 * xmax - d[d >= xmed]))
     elif xmin is not None:
-        return np.concatenate((2*xmin-d, d))
+        return np.concatenate((2 * xmin - d, d))
     elif xmax is not None:
-        return np.concatenate((d, 2*xmax-d))
+        return np.concatenate((d, 2 * xmax - d))
     else:
         return d
 
@@ -105,28 +106,30 @@ def mirror_2d(d_x_, d_y_, xmin=None, xmax=None, ymin=None, ymax=None):
     d_y = d_y_.copy()
 
     if xmin is not None and xmax is not None:
-        xmed = (xmin+xmax)/2
+        xmed = (xmin + xmax) / 2
         d_y = np.concatenate((d_y[d_x < xmed], d_y, d_y[d_x >= xmed]))
-        d_x = np.concatenate((2*xmin-d_x[d_x < xmed], d_x,
-                              2*xmax-d_x[d_x >= xmed]))
+        d_x = np.concatenate(
+            (2 * xmin - d_x[d_x < xmed], d_x, 2 * xmax - d_x[d_x >= xmed])
+        )
     elif xmin is not None:
         d_y = np.concatenate((d_y, d_y))
-        d_x = np.concatenate((2*xmin-d_x, d_x))
+        d_x = np.concatenate((2 * xmin - d_x, d_x))
     elif xmax is not None:
         d_y = np.concatenate((d_y, d_y))
-        d_x = np.concatenate((d_x, 2*xmax-d_x))
+        d_x = np.concatenate((d_x, 2 * xmax - d_x))
 
     if ymin is not None and ymax is not None:
-        ymed = (ymin+ymax)/2
+        ymed = (ymin + ymax) / 2
         d_x = np.concatenate((d_x[d_y < ymed], d_x, d_x[d_y >= ymed]))
-        d_y = np.concatenate((2*ymin-d_y[d_y < ymed], d_y,
-                              2*ymax-d_y[d_y >= ymed]))
+        d_y = np.concatenate(
+            (2 * ymin - d_y[d_y < ymed], d_y, 2 * ymax - d_y[d_y >= ymed])
+        )
     elif ymin is not None:
         d_x = np.concatenate((d_x, d_x))
-        d_y = np.concatenate((2*ymin-d_y, d_y))
+        d_y = np.concatenate((2 * ymin - d_y, d_y))
     elif ymax is not None:
         d_x = np.concatenate((d_x, d_x))
-        d_y = np.concatenate((d_y, 2*ymax-d_y))
+        d_y = np.concatenate((d_y, 2 * ymax - d_y))
 
     return d_x, d_y
 
@@ -150,7 +153,7 @@ def histogram(a, **kwargs):
     normalised to 1.
     """
     hist, bin_edges = np.histogram(a, **kwargs)
-    xpath, ypath = np.empty((2, 4*len(hist)))
+    xpath, ypath = np.empty((2, 4 * len(hist)))
     ypath[0::4] = ypath[3::4] = 0
     ypath[1::4] = ypath[2::4] = hist
     xpath[0::4] = xpath[1::4] = bin_edges[:-1]
@@ -174,14 +177,13 @@ def compute_nlive(death, birth):
     nlive: np.array
         number of live points at each contour
     """
-    b = pandas.DataFrame(np.array(birth), columns=['logL'])
-    d = pandas.DataFrame(np.array(death), columns=['logL'],
-                         index=b.index + len(b))
-    b['n'] = +1
-    d['n'] = -1
-    t = pandas.concat([b, d]).sort_values(['logL', 'n'])
+    b = pandas.DataFrame(np.array(birth), columns=["logL"])
+    d = pandas.DataFrame(np.array(death), columns=["logL"], index=b.index + len(b))
+    b["n"] = +1
+    d["n"] = -1
+    t = pandas.concat([b, d]).sort_values(["logL", "n"])
     n = t.n.cumsum()
-    return (n[d.index]+1).to_numpy()
+    return (n[d.index] + 1).to_numpy()
 
 
 def compute_insertion_indexes(death, birth):
@@ -229,18 +231,17 @@ def iso_probability_contours(pdf, contours=[0.95, 0.68]):
             "2.0.0-beta.10, in order to better match the ordering of other "
             "matplotlib kwargs."
         )
-    contours = [1-p for p in contours]
+    contours = [1 - p for p in contours]
     p = np.sort(np.array(pdf).flatten())
     m = np.cumsum(p)
     m /= m[-1]
-    interp = interp1d([0]+list(m), [0]+list(p))
-    c = list(interp(contours))+[max(p)]
+    interp = interp1d([0] + list(m), [0] + list(p))
+    c = list(interp(contours)) + [max(p)]
 
     return c
 
 
-def iso_probability_contours_from_samples(pdf, contours=[0.95, 0.68],
-                                          weights=None):
+def iso_probability_contours_from_samples(pdf, contours=[0.95, 0.68], weights=None):
     """Compute the iso-probability contour values."""
     if len(contours) > 1 and not np.all(contours[:-1] > contours[1:]):
         raise ValueError(
@@ -254,12 +255,12 @@ def iso_probability_contours_from_samples(pdf, contours=[0.95, 0.68],
         )
     if weights is None:
         weights = np.ones_like(pdf)
-    contours = [1-p for p in contours]
+    contours = [1 - p for p in contours]
     i = np.argsort(pdf)
     m = np.cumsum(weights[i])
     m /= m[-1]
-    interp = interp1d([0]+list(m), [0]+list(pdf[i]))
-    c = list(interp(contours))+[max(pdf)]
+    interp = interp1d([0] + list(m), [0] + list(pdf[i]))
+    c = list(interp(contours)) + [max(pdf)]
 
     return c
 
@@ -328,7 +329,7 @@ def triangular_sample_compression_2d(x, y, cov, w=None, n=1000):
     if (w != 0).sum() < n:
         i = x.index
     else:
-        i = np.random.choice(x.index, size=n, replace=False, p=w/w.sum())
+        i = np.random.choice(x.index, size=n, replace=False, p=w / w.sum())
 
     # Generate triangulation
     tri = scaled_triangulation(x[i], y[i], cov)
@@ -341,7 +342,7 @@ def triangular_sample_compression_2d(x, y, cov, w=None, n=1000):
     # Compute mass in each triangle, and add it to each corner
     w_ = np.zeros(len(i))
     for i in range(3):
-        np.add.at(w_, k[:, i], w[j != -1]/3)
+        np.add.at(w_, k[:, i], w[j != -1] / 3)
 
     return tri, w_
 
@@ -388,7 +389,7 @@ def sample_compression_1d(x, w=None, ncompress=True):
     x_.sort()
 
     # Compress mass onto these subsamples
-    centers = (x_[1:] + x_[:-1])/2
+    centers = (x_[1:] + x_[:-1]) / 2
     j = np.digitize(x, centers)
     w_ = np.zeros_like(x_)
     np.add.at(w_, j, w)
@@ -458,14 +459,14 @@ def insertion_p_value(indexes, nlive, batch=0):
             uncorrected p-value: p-value without Bonferroni correction
     """
     if batch == 0:
-        bins = np.arange(-0.5, nlive + 0.5, 1.)
+        bins = np.arange(-0.5, nlive + 0.5, 1.0)
         empirical_pmf = np.histogram(
             np.array(indexes),
             bins=bins,
             density=True,
         )[0]
         empirical_cmf = np.cumsum(empirical_pmf)
-        uniform_cmf = np.arange(1., nlive + 1., 1.) / nlive
+        uniform_cmf = np.arange(1.0, nlive + 1.0, 1.0) / nlive
 
         D = abs(empirical_cmf - uniform_cmf).max()
         sample_size = len(indexes)
@@ -479,8 +480,7 @@ def insertion_p_value(indexes, nlive, batch=0):
     else:
         batch = int(batch * nlive)
         batches = [
-            np.array(indexes)[i:i + batch]
-            for i in range(0, len(indexes), batch)
+            np.array(indexes)[i : i + batch] for i in range(0, len(indexes), batch)
         ]
         ks_results = [insertion_p_value(c, nlive) for c in batches]
         ks_result = min(ks_results, key=lambda t: t["p-value"])
@@ -489,7 +489,7 @@ def insertion_p_value(indexes, nlive, batch=0):
         ks_result["iterations"] = (index * batch, (index + 1) * batch)
         ks_result["nbatches"] = n = len(batches)
         ks_result["uncorrected p-value"] = p = ks_result["p-value"]
-        ks_result["p-value"] = 1. - (1. - p)**n if p != 1 else p * n
+        ks_result["p-value"] = 1.0 - (1.0 - p) ** n if p != 1 else p * n
         return ks_result
 
 

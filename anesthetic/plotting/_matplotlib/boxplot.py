@@ -11,11 +11,11 @@ from anesthetic._code_utils import replace_inner_function
 def _bxpstat(y, weights, whis):
     q1, med, q3 = quantile(y, [0.25, 0.5, 0.75], weights)
     bxpstat = {}
-    bxpstat['med'] = med
-    bxpstat['q1'] = q1
-    bxpstat['q3'] = q3
-    bxpstat['whislo'] = q1 - whis*(q3-q1)
-    bxpstat['whishi'] = q3 + whis*(q3-q1)
+    bxpstat["med"] = med
+    bxpstat["q1"] = q1
+    bxpstat["q3"] = q3
+    bxpstat["whislo"] = q1 - whis * (q3 - q1)
+    bxpstat["whishi"] = q3 + whis * (q3 - q1)
     return bxpstat
 
 
@@ -38,7 +38,7 @@ class BoxPlot(_WeightedMPLPlot, _BoxPlot):
             bp = ax.boxplot(y, **kwds)
         else:
             whis = kwds.pop("whis", 1.5)
-            kwds['showfliers'] = False
+            kwds["showfliers"] = False
             y = np.atleast_2d(y)
             bp = ax.bxp([_bxpstat(yi, weights, whis) for yi in y], **kwds)
 
@@ -72,15 +72,16 @@ def boxplot(data, *args, **kwds):
             weights = kwds.pop("weights", None)
             keys = [pprint_thing(x) for x in keys]
             if weights is None:
-                values = [np.asarray(remove_na_arraylike(v), dtype=object)
-                          for v in values]
+                values = [
+                    np.asarray(remove_na_arraylike(v), dtype=object) for v in values
+                ]
                 bp = ax.boxplot(values, **kwds)
             else:
                 whis = kwds.pop("whis", 1.5)
-                kwds['showfliers'] = False
+                kwds["showfliers"] = False
                 from anesthetic.plotting._matplotlib.boxplot import _bxpstat
-                bp = ax.bxp([_bxpstat(v, weights, whis) for v in values],
-                            **kwds)
+
+                bp = ax.bxp([_bxpstat(v, weights, whis) for v in values], **kwds)
 
             if fontsize is not None:
                 ax.tick_params(axis="both", labelsize=fontsize)
@@ -106,8 +107,9 @@ def boxplot(data, *args, **kwds):
             else:
                 return ax
 
-    boxplot = replace_inner_function(pandas.plotting._matplotlib.boxplot,
-                                     create_plot_group.__code__.co_consts[1])
+    boxplot = replace_inner_function(
+        pandas.plotting._matplotlib.boxplot, create_plot_group.__code__.co_consts[1]
+    )
     return boxplot(data, *args, **kwds)
 
 

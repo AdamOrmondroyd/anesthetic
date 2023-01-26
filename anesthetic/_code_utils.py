@@ -11,24 +11,27 @@ def replace_inner_function(outer, new_inner):
     function, code = type(outer), type(ocode)
     iname = new_inner.co_name
     orig_inner = next(
-        const for const in ocode.co_consts
-        if isinstance(const, code) and const.co_name == iname)
+        const
+        for const in ocode.co_consts
+        if isinstance(const, code) and const.co_name == iname
+    )
 
     # you can ignore later closures, but since they are matched by position
     # the new sequence must match the start of the old.
-    assert (orig_inner.co_freevars[:len(new_inner.co_freevars)] ==
-            new_inner.co_freevars), 'New closures must match originals'
+    assert (
+        orig_inner.co_freevars[: len(new_inner.co_freevars)] == new_inner.co_freevars
+    ), "New closures must match originals"
 
     # replace the code object for the inner function
     new_consts = tuple(
         new_inner if const is orig_inner else const
-        for const in outer.__code__.co_consts)
+        for const in outer.__code__.co_consts
+    )
 
     # create a new code object with the new constants
     ncode = ocode.replace(co_consts=new_consts)
 
     # and a new function object using the updated code object
     return function(
-        ncode, outer.__globals__, outer.__name__,
-        outer.__defaults__, outer.__closure__
+        ncode, outer.__globals__, outer.__name__, outer.__defaults__, outer.__closure__
     )

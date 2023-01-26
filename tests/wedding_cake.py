@@ -3,7 +3,7 @@ from scipy.special import logsumexp
 from anesthetic import NestedSamples
 
 
-class WeddingCake():
+class WeddingCake:
     """Class for generating samples from a wedding cake 'likelihood'.
 
     This is a likelihood with nested hypercuboidal plateau regions of constant
@@ -24,6 +24,7 @@ class WeddingCake():
     sigma: float
         width of gaussian profile
     """
+
     def __init__(self, D=4, alpha=0.5, sigma=0.01):
         self.D = D
         self.alpha = alpha
@@ -31,23 +32,29 @@ class WeddingCake():
 
     def logZ(self):
         """Numerically compute the true evidence."""
-        mean = np.sqrt(self.D/2.) * (np.log(4*self.D*self.sigma**2)-1
-                                     ) / np.log(self.alpha)
-        std = -np.sqrt(self.D/2.)/np.log(self.alpha)
-        i = np.arange(mean + std*10)
+        mean = (
+            np.sqrt(self.D / 2.0)
+            * (np.log(4 * self.D * self.sigma**2) - 1)
+            / np.log(self.alpha)
+        )
+        std = -np.sqrt(self.D / 2.0) / np.log(self.alpha)
+        i = np.arange(mean + std * 10)
 
-        return logsumexp(-self.alpha**(2*i/self.D)/8/self.sigma**2
-                         + i*np.log(self.alpha) + np.log(1-self.alpha))
+        return logsumexp(
+            -self.alpha ** (2 * i / self.D) / 8 / self.sigma**2
+            + i * np.log(self.alpha)
+            + np.log(1 - self.alpha)
+        )
 
     def i(self, x):
         """Plateau number of a parameter point."""
-        r = np.max(abs(x-0.5), axis=-1)
-        return np.floor(self.D*np.log(2*r)/np.log(self.alpha))
+        r = np.max(abs(x - 0.5), axis=-1)
+        return np.floor(self.D * np.log(2 * r) / np.log(self.alpha))
 
     def logL(self, x):
         """Gaussian log-likelihood."""
-        ri = self.alpha**(self.i(x)/self.D)/2
-        return - ri**2/2/self.sigma**2
+        ri = self.alpha ** (self.i(x) / self.D) / 2
+        return -(ri**2) / 2 / self.sigma**2
 
     def sample(self, nlive=500):
         """Generate samples from a perfect nested sampling run."""
@@ -57,7 +64,7 @@ class WeddingCake():
 
         live_points = np.random.rand(nlive, self.D)
         live_likes = self.logL(live_points)
-        live_birth_likes = np.ones(nlive)*-np.inf
+        live_birth_likes = np.ones(nlive) * -np.inf
 
         while True:
             logL_ = live_likes.min()
@@ -67,15 +74,14 @@ class WeddingCake():
             birth_likes = np.concatenate([birth_likes, live_birth_likes[j]])
             points = np.concatenate([points, live_points[j]])
 
-            i_ = self.i(live_points[j][0])+1
-            r_ = self.alpha**(i_/self.D)/2
-            x_ = np.random.uniform(0.5-r_, 0.5+r_, size=(j.sum(), self.D))
+            i_ = self.i(live_points[j][0]) + 1
+            r_ = self.alpha ** (i_ / self.D) / 2
+            x_ = np.random.uniform(0.5 - r_, 0.5 + r_, size=(j.sum(), self.D))
             live_birth_likes[j] = logL_
             live_points[j] = x_
             live_likes[j] = self.logL(x_)
 
-            samps = NestedSamples(points, logL=death_likes,
-                                  logL_birth=birth_likes)
+            samps = NestedSamples(points, logL=death_likes, logL_birth=birth_likes)
 
             live_weights = samps.iloc[-nlive:].get_weights().sum()
             dead_weights = samps.get_weights().sum()

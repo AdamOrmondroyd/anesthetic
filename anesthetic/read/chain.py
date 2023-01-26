@@ -41,4 +41,4 @@ def read_chains(root, *args, **kwargs):
             errors.append(str(read) + ": " + str(e))
 
     errors = ["Could not find any compatible chains:"] + errors
-    raise FileNotFoundError('\n'.join(errors))
+    raise FileNotFoundError("\n".join(errors))

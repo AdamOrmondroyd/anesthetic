@@ -4,11 +4,21 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
-from anesthetic.plot import (make_1d_axes, make_2d_axes, kde_plot_1d,
-                             fastkde_plot_1d, hist_plot_1d, hist_plot_2d,
-                             fastkde_contour_plot_2d, kde_contour_plot_2d,
-                             scatter_plot_2d, quantile_plot_interval,
-                             basic_cmap, AxesSeries, AxesDataFrame)
+from anesthetic.plot import (
+    make_1d_axes,
+    make_2d_axes,
+    kde_plot_1d,
+    fastkde_plot_1d,
+    hist_plot_1d,
+    hist_plot_2d,
+    fastkde_contour_plot_2d,
+    kde_contour_plot_2d,
+    scatter_plot_2d,
+    quantile_plot_interval,
+    basic_cmap,
+    AxesSeries,
+    AxesDataFrame,
+)
 from numpy.testing import assert_array_equal
 
 from matplotlib.axes._subplots import SubplotBase
@@ -22,27 +32,27 @@ from scipy.interpolate import interp1d
 
 
 def test_AxesObjects():
-    paramnames = ['a', 'b', 'c']
+    paramnames = ["a", "b", "c"]
 
     # AxesSeries
     axes = AxesSeries(index=paramnames)
     assert isinstance(axes, AxesSeries)
     assert isinstance(axes.iloc[0], SubplotBase)
-    assert axes.iloc[0].get_xlabel() == 'a'
-    axes.set_xlabels(labels=dict(a='A', b='B', c='C'))
-    assert axes.iloc[0].get_xlabel() == 'A'
-    axes.tick_params(labelrotation=0, labelsize='medium')
+    assert axes.iloc[0].get_xlabel() == "a"
+    axes.set_xlabels(labels=dict(a="A", b="B", c="C"))
+    assert axes.iloc[0].get_xlabel() == "A"
+    axes.tick_params(labelrotation=0, labelsize="medium")
 
     # AxesDataFrame
-    axes = AxesDataFrame(index=paramnames + ['d'], columns=paramnames)
+    axes = AxesDataFrame(index=paramnames + ["d"], columns=paramnames)
     assert isinstance(axes, AxesDataFrame)
     assert isinstance(axes.iloc[0, 0], SubplotBase)
-    assert axes.iloc[-1, 0].get_xlabel() == 'a'
-    assert axes.iloc[-1, 0].get_ylabel() == 'd'
-    axes.set_labels(labels=dict(a='A', b='B', c='C', d='D'))
-    assert axes.iloc[-1, 0].get_xlabel() == 'A'
-    assert axes.iloc[-1, 0].get_ylabel() == 'D'
-    axes.tick_params(labelrotation=0, labelsize='medium')
+    assert axes.iloc[-1, 0].get_xlabel() == "a"
+    assert axes.iloc[-1, 0].get_ylabel() == "d"
+    axes.set_labels(labels=dict(a="A", b="B", c="C", d="D"))
+    assert axes.iloc[-1, 0].get_xlabel() == "A"
+    assert axes.iloc[-1, 0].get_ylabel() == "D"
+    axes.tick_params(labelrotation=0, labelsize="medium")
     xmin1, xmax1 = axes.iloc[0, 0].get_xlim()
     ymin1, ymax1 = axes.iloc[0, 0].get_ylim()
     axes.set_margins(m=0.5)
@@ -55,8 +65,8 @@ def test_AxesObjects():
 
 
 def test_make_1d_axes():
-    paramnames = ['A', 'B', 'C', 'D', 'E']
-    labels = {'A': 'tA', 'B': 'tB', 'C': 'tC', 'D': 'tD', 'E': 'tE'}
+    paramnames = ["A", "B", "C", "D", "E"]
+    labels = {"A": "tA", "B": "tB", "C": "tC", "D": "tD", "E": "tE"}
 
     # Check no optional arguments
     fig, axes = make_1d_axes(paramnames)
@@ -82,7 +92,7 @@ def test_make_1d_axes():
 
     # Check fig argument
     fig0 = plt.figure()
-    fig0.suptitle('hi there')
+    fig0.suptitle("hi there")
     fig, axes = make_1d_axes(paramnames)
     assert fig is not fig0
     fig, axes = make_1d_axes(paramnames, fig=fig0)
@@ -111,19 +121,19 @@ def test_make_1d_axes():
 
     # Check unexpected kwargs
     with pytest.raises((AttributeError, TypeError)):
-        make_1d_axes(paramnames, spam='ham')
+        make_1d_axes(paramnames, spam="ham")
 
 
 def test_make_2d_axes_inputs_outputs():
-    paramnames_x = ['A', 'B', 'C', 'D']
-    paramnames_y = ['B', 'A', 'D', 'E']
+    paramnames_x = ["A", "B", "C", "D"]
+    paramnames_y = ["B", "A", "D", "E"]
 
     # 2D axes
     fig, axes = make_2d_axes([paramnames_x, paramnames_y])
     assert isinstance(fig, Figure)
     assert isinstance(axes, AxesDataFrame)
-    assert isinstance(axes['A'], AxesSeries)
-    assert isinstance(axes.loc['A':'B', 'B':'C'], AxesDataFrame)
+    assert isinstance(axes["A"], AxesSeries)
+    assert isinstance(axes.loc["A":"B", "B":"C"], AxesDataFrame)
     assert_array_equal(axes.index, paramnames_y)
     assert_array_equal(axes.columns, paramnames_x)
 
@@ -135,8 +145,8 @@ def test_make_2d_axes_inputs_outputs():
         assert ax.get_xlabel() == p
 
     for ax in axes.iloc[:-1, 1:].to_numpy().flatten():
-        assert ax.get_xlabel() == ''
-        assert ax.get_ylabel() == ''
+        assert ax.get_xlabel() == ""
+        assert ax.get_ylabel() == ""
 
     # Check fig argument
     fig0 = plt.figure()
@@ -163,27 +173,32 @@ def test_make_2d_axes_inputs_outputs():
 
     # Check unexpected kwargs
     with pytest.raises((AttributeError, TypeError)):
-        make_2d_axes(paramnames_x, spam='ham')
+        make_2d_axes(paramnames_x, spam="ham")
 
 
-@pytest.mark.parametrize('paramnames_y', [['A', 'B', 'C', 'D'],
-                                          ['A', 'C', 'B', 'D'],
-                                          ['D', 'C', 'B', 'A'],
-                                          ['C', 'B', 'A'],
-                                          ['E', 'F', 'G', 'H'],
-                                          ['A', 'B', 'E', 'F'],
-                                          ['B', 'E', 'A', 'F'],
-                                          ['B', 'F', 'A', 'H', 'G'],
-                                          ['B', 'A', 'H', 'G']])
-@pytest.mark.parametrize('upper', [False, True])
-@pytest.mark.parametrize('lower', [False, True])
-@pytest.mark.parametrize('diagonal', [False, True])
+@pytest.mark.parametrize(
+    "paramnames_y",
+    [
+        ["A", "B", "C", "D"],
+        ["A", "C", "B", "D"],
+        ["D", "C", "B", "A"],
+        ["C", "B", "A"],
+        ["E", "F", "G", "H"],
+        ["A", "B", "E", "F"],
+        ["B", "E", "A", "F"],
+        ["B", "F", "A", "H", "G"],
+        ["B", "A", "H", "G"],
+    ],
+)
+@pytest.mark.parametrize("upper", [False, True])
+@pytest.mark.parametrize("lower", [False, True])
+@pytest.mark.parametrize("diagonal", [False, True])
 def test_make_2d_axes_behaviour(diagonal, lower, upper, paramnames_y):
     np.random.seed(0)
 
     def calc_n(axes):
         """Compute the number of upper, lower and diagonal plots."""
-        n = {'upper': 0, 'lower': 0, 'diagonal': 0}
+        n = {"upper": 0, "lower": 0, "diagonal": 0}
         for y, row in axes.iterrows():
             for x, ax in row.items():
                 if ax is not None:
@@ -191,16 +206,13 @@ def test_make_2d_axes_behaviour(diagonal, lower, upper, paramnames_y):
         return n
 
     # Check for only paramnames_x
-    paramnames_x = ['A', 'B', 'C', 'D']
+    paramnames_x = ["A", "B", "C", "D"]
     nx = len(paramnames_x)
-    fig, axes = make_2d_axes(paramnames_x,
-                             upper=upper,
-                             lower=lower,
-                             diagonal=diagonal)
+    fig, axes = make_2d_axes(paramnames_x, upper=upper, lower=lower, diagonal=diagonal)
     ns = calc_n(axes)
-    assert ns['upper'] == upper * nx*(nx-1)//2
-    assert ns['lower'] == lower * nx*(nx-1)//2
-    assert ns['diagonal'] == diagonal * nx
+    assert ns["upper"] == upper * nx * (nx - 1) // 2
+    assert ns["lower"] == lower * nx * (nx - 1) // 2
+    assert ns["diagonal"] == diagonal * nx
 
     params = [paramnames_x, paramnames_y]
     all_params = paramnames_x + paramnames_y
@@ -213,18 +225,15 @@ def test_make_2d_axes_behaviour(diagonal, lower, upper, paramnames_y):
                 nl += 1
             elif all_params.index(x) > all_params.index(y):
                 nu += 1
-    fig, axes = make_2d_axes(params,
-                             upper=upper,
-                             lower=lower,
-                             diagonal=diagonal)
+    fig, axes = make_2d_axes(params, upper=upper, lower=lower, diagonal=diagonal)
     ns = calc_n(axes)
-    assert ns['upper'] == upper * nu
-    assert ns['lower'] == lower * nl
-    assert ns['diagonal'] == diagonal * nd
+    assert ns["upper"] == upper * nu
+    assert ns["lower"] == lower * nl
+    assert ns["diagonal"] == diagonal * nd
 
 
-@pytest.mark.parametrize('upper', [False, True])
-@pytest.mark.parametrize('ticks', ['inner', 'outer', None])
+@pytest.mark.parametrize("upper", [False, True])
+@pytest.mark.parametrize("ticks", ["inner", "outer", None])
 def test_make_2d_axes_ticks(upper, ticks):
     xticks = [0.1, 0.4, 0.7]
     yticks = [0.2, 0.5, 0.8]
@@ -246,17 +255,17 @@ def test_make_2d_axes_ticks(upper, ticks):
                 else:
                     assert not np.array_equal(xticks, ax.get_xticks())
     with pytest.raises(ValueError):
-        make_2d_axes(paramnames, upper=upper, ticks='spam')
+        make_2d_axes(paramnames, upper=upper, ticks="spam")
 
 
 def test_make_2d_axes_ticks_error():
     with pytest.raises(ValueError):
-        make_2d_axes(['a', 'b'], ticks='spam')
+        make_2d_axes(["a", "b"], ticks="spam")
 
 
 def test_2d_axes_limits():
     np.random.seed(0)
-    paramnames = ['A', 'B', 'C', 'D']
+    paramnames = ["A", "B", "C", "D"]
     fig, axes = make_2d_axes(paramnames)
     for x in paramnames:
         for y in paramnames:
@@ -272,46 +281,66 @@ def test_2d_axes_limits():
                 assert axes[z][y].get_ylim() == (c, d)
 
 
-@pytest.mark.parametrize('axesparams', [['A', 'B', 'C', 'D'],
-                                        [['A', 'B', 'C', 'D'], ['A', 'B']],
-                                        [['A', 'B'], ['A', 'B', 'C', 'D']]])
-@pytest.mark.parametrize('params', [{'A': 0},
-                                    {'A': 0, 'C': 0, 'E': 0},
-                                    {'A': 0, 'C': [0, 0.5]}])
-@pytest.mark.parametrize('upper', [True, False])
+@pytest.mark.parametrize(
+    "axesparams",
+    [
+        ["A", "B", "C", "D"],
+        [["A", "B", "C", "D"], ["A", "B"]],
+        [["A", "B"], ["A", "B", "C", "D"]],
+    ],
+)
+@pytest.mark.parametrize(
+    "params", [{"A": 0}, {"A": 0, "C": 0, "E": 0}, {"A": 0, "C": [0, 0.5]}]
+)
+@pytest.mark.parametrize("upper", [True, False])
 def test_2d_axes_axlines(axesparams, params, upper):
-    kwargs = dict(c='k', ls='--', lw=0.5)
+    kwargs = dict(c="k", ls="--", lw=0.5)
     fig, axes = make_2d_axes(axesparams, upper=upper)
     axes.axlines(params, **kwargs)
 
 
-@pytest.mark.parametrize('axesparams', [['A', 'B', 'C', 'D'],
-                                        [['A', 'B', 'C', 'D'], ['A', 'B']],
-                                        [['A', 'B'], ['A', 'B', 'C', 'D']]])
-@pytest.mark.parametrize('params', [{'A': (0, 0.1)},
-                                    {'A': (0, 1), 'C': (0, 1), 'E': (0, 1)},
-                                    {'A': (0, 1), 'C': [(-0.1, 0), (0.5, 1)]}])
-@pytest.mark.parametrize('upper', [True, False])
+@pytest.mark.parametrize(
+    "axesparams",
+    [
+        ["A", "B", "C", "D"],
+        [["A", "B", "C", "D"], ["A", "B"]],
+        [["A", "B"], ["A", "B", "C", "D"]],
+    ],
+)
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"A": (0, 0.1)},
+        {"A": (0, 1), "C": (0, 1), "E": (0, 1)},
+        {"A": (0, 1), "C": [(-0.1, 0), (0.5, 1)]},
+    ],
+)
+@pytest.mark.parametrize("upper", [True, False])
 def test_2d_axes_axspans(axesparams, params, upper):
-    kwargs = dict(c='k', alpha=0.5)
+    kwargs = dict(c="k", alpha=0.5)
     fig, axes = make_2d_axes(axesparams, upper=upper)
     axes.axspans(params, **kwargs)
 
 
-@pytest.mark.parametrize('axesparams', [['A', 'B', 'C', 'D'],
-                                        [['A', 'B', 'C', 'D'], ['A', 'B']],
-                                        [['A', 'B'], ['A', 'B', 'C', 'D']]])
-@pytest.mark.parametrize('params', [{'A': 0},
-                                    {'A': 0, 'C': 0, 'E': 0},
-                                    {'A': [0, 0.1], 'C': [0, 0.5]}])
-@pytest.mark.parametrize('upper', [True, False])
+@pytest.mark.parametrize(
+    "axesparams",
+    [
+        ["A", "B", "C", "D"],
+        [["A", "B", "C", "D"], ["A", "B"]],
+        [["A", "B"], ["A", "B", "C", "D"]],
+    ],
+)
+@pytest.mark.parametrize(
+    "params", [{"A": 0}, {"A": 0, "C": 0, "E": 0}, {"A": [0, 0.1], "C": [0, 0.5]}]
+)
+@pytest.mark.parametrize("upper", [True, False])
 def test_2d_axes_scatter(axesparams, params, upper):
-    kwargs = dict(c='k', marker='*')
+    kwargs = dict(c="k", marker="*")
     fig, axes = make_2d_axes(axesparams, upper=upper)
     axes.scatter(params, **kwargs)
 
 
-@pytest.mark.parametrize('plot_1d', [kde_plot_1d, fastkde_plot_1d])
+@pytest.mark.parametrize("plot_1d", [kde_plot_1d, fastkde_plot_1d])
 def test_kde_plot_1d(plot_1d):
     fig, ax = plt.subplots()
     np.random.seed(0)
@@ -319,18 +348,18 @@ def test_kde_plot_1d(plot_1d):
 
     try:
         # Check height
-        line, = plot_1d(ax, data)
+        (line,) = plot_1d(ax, data)
         assert isinstance(line, Line2D)
         assert line.get_ydata().max() <= 1
 
         # Check arguments are passed onward to underlying function
-        line, = plot_1d(ax, data, color='r')
-        assert line.get_color() == 'r'
-        line, = plot_1d(ax, data, cmap=plt.cm.Blues)
+        (line,) = plot_1d(ax, data, color="r")
+        assert line.get_color() == "r"
+        (line,) = plot_1d(ax, data, cmap=plt.cm.Blues)
         assert line.get_color() == plt.cm.Blues(0.68)
 
         # Check q
-        plot_1d(ax, data, q='1sigma')
+        plot_1d(ax, data, q="1sigma")
         plot_1d(ax, data, q=0)
         plot_1d(ax, data, q=1)
         plot_1d(ax, data, q=5)
@@ -342,12 +371,12 @@ def test_kde_plot_1d(plot_1d):
         # Check iso-probability code
         line, fill = plot_1d(ax, data, facecolor=True)
         plot_1d(ax, data, facecolor=True, levels=[0.8, 0.6, 0.2])
-        line, fill = plot_1d(ax, data, fc='blue', color='k', ec='r')
-        assert np.all(fill[0].get_edgecolor()[0] == to_rgba('r'))
-        assert (to_rgba(line[0].get_color()) == to_rgba('r'))
-        line, fill = plot_1d(ax, data, fc=True, color='k', ec=None)
+        line, fill = plot_1d(ax, data, fc="blue", color="k", ec="r")
+        assert np.all(fill[0].get_edgecolor()[0] == to_rgba("r"))
+        assert to_rgba(line[0].get_color()) == to_rgba("r")
+        line, fill = plot_1d(ax, data, fc=True, color="k", ec=None)
         assert len(fill[0].get_edgecolor()) == 0
-        assert (to_rgba(line[0].get_color()) == to_rgba('k'))
+        assert to_rgba(line[0].get_color()) == to_rgba("k")
 
         # Check levels
         with pytest.raises(ValueError):
@@ -370,7 +399,7 @@ def test_kde_plot_1d(plot_1d):
         assert xmax >= 1
 
     except ImportError:
-        if 'fastkde' not in sys.modules:
+        if "fastkde" not in sys.modules:
             pass
 
 
@@ -382,15 +411,15 @@ def test_fastkde_min_max():
     ymin, ymax = -1, +1
     try:
         _, ax = plt.subplots()
-        line, = fastkde_plot_1d(ax, data_x, xmin=xmin)
+        (line,) = fastkde_plot_1d(ax, data_x, xmin=xmin)
         assert (line.get_xdata() >= xmin).all()
 
         _, ax = plt.subplots()
-        line, = fastkde_plot_1d(ax, data_x, xmax=xmax)
+        (line,) = fastkde_plot_1d(ax, data_x, xmax=xmax)
         assert (line.get_xdata() <= xmax).all()
 
         _, ax = plt.subplots()
-        line, = fastkde_plot_1d(ax, data_x, xmin=xmin, xmax=xmax)
+        (line,) = fastkde_plot_1d(ax, data_x, xmin=xmin, xmax=xmax)
         assert (line.get_xdata() >= xmin).all()
         assert (line.get_xdata() <= xmax).all()
 
@@ -405,15 +434,16 @@ def test_fastkde_min_max():
         assert ax.get_ylim()[1] <= ymax
 
         _, ax = plt.subplots()
-        fastkde_contour_plot_2d(ax, data_x, data_y,
-                                xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)
+        fastkde_contour_plot_2d(
+            ax, data_x, data_y, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
+        )
         assert ax.get_xlim()[0] >= xmin
         assert ax.get_xlim()[1] <= xmax
         assert ax.get_ylim()[0] >= ymin
         assert ax.get_ylim()[1] <= ymax
 
     except ImportError:
-        if 'fastkde' not in sys.modules:
+        if "fastkde" not in sys.modules:
             pass
 
 
@@ -423,54 +453,54 @@ def test_hist_plot_1d():
     data = np.random.randn(1000)
 
     # Check heights for histtype 'bar'
-    bars = hist_plot_1d(ax, data, histtype='bar')
+    bars = hist_plot_1d(ax, data, histtype="bar")
     assert np.all([isinstance(b, Patch) for b in bars])
-    assert max([b.get_height() for b in bars]) == 1.
-    assert np.all(np.array([b.get_height() for b in bars]) <= 1.)
+    assert max([b.get_height() for b in bars]) == 1.0
+    assert np.all(np.array([b.get_height() for b in bars]) <= 1.0)
 
     # Check heights for histtype 'step'
-    polygon, = hist_plot_1d(ax, data, histtype='step')
+    (polygon,) = hist_plot_1d(ax, data, histtype="step")
     assert isinstance(polygon, Polygon)
     trans = polygon.get_transform() - ax.transData
-    assert np.isclose(trans.transform(polygon.xy)[:, -1].max(), 1.,
-                      rtol=1e-10, atol=1e-10)
-    assert np.all(trans.transform(polygon.xy)[:, -1] <= 1.)
+    assert np.isclose(
+        trans.transform(polygon.xy)[:, -1].max(), 1.0, rtol=1e-10, atol=1e-10
+    )
+    assert np.all(trans.transform(polygon.xy)[:, -1] <= 1.0)
 
     # Check heights for histtype 'stepfilled'
-    polygon, = hist_plot_1d(ax, data, histtype='stepfilled')
+    (polygon,) = hist_plot_1d(ax, data, histtype="stepfilled")
     assert isinstance(polygon, Polygon)
     trans = polygon.get_transform() - ax.transData
-    assert np.isclose(trans.transform(polygon.xy)[:, -1].max(), 1.,
-                      rtol=1e-10, atol=1e-10)
-    assert np.all(trans.transform(polygon.xy)[:, -1] <= 1.)
+    assert np.isclose(
+        trans.transform(polygon.xy)[:, -1].max(), 1.0, rtol=1e-10, atol=1e-10
+    )
+    assert np.all(trans.transform(polygon.xy)[:, -1] <= 1.0)
 
     # Check arguments are passed onward to underlying function
-    bars = hist_plot_1d(ax, data, histtype='bar', color='r', alpha=0.5)
-    cc = ColorConverter.to_rgba('r', alpha=0.5)
+    bars = hist_plot_1d(ax, data, histtype="bar", color="r", alpha=0.5)
+    cc = ColorConverter.to_rgba("r", alpha=0.5)
     assert np.all([b.get_fc() == cc for b in bars])
-    bars = hist_plot_1d(ax, data, histtype='bar', cmap=plt.cm.viridis,
-                        alpha=0.5)
+    bars = hist_plot_1d(ax, data, histtype="bar", cmap=plt.cm.viridis, alpha=0.5)
     cc = ColorConverter.to_rgba(plt.cm.viridis(0.68), alpha=0.5)
     assert np.all([b.get_fc() == cc for b in bars])
-    polygon, = hist_plot_1d(ax, data, histtype='step', color='r', alpha=0.5)
-    assert polygon.get_ec() == ColorConverter.to_rgba('r', alpha=0.5)
-    polygon, = hist_plot_1d(ax, data, histtype='step', cmap=plt.cm.viridis,
-                            color='r')
-    assert polygon.get_ec() == ColorConverter.to_rgba('r')
+    (polygon,) = hist_plot_1d(ax, data, histtype="step", color="r", alpha=0.5)
+    assert polygon.get_ec() == ColorConverter.to_rgba("r", alpha=0.5)
+    (polygon,) = hist_plot_1d(ax, data, histtype="step", cmap=plt.cm.viridis, color="r")
+    assert polygon.get_ec() == ColorConverter.to_rgba("r")
 
 
-@pytest.mark.parametrize('bins', ['knuth', 'freedman', 'blocks'])
+@pytest.mark.parametrize("bins", ["knuth", "freedman", "blocks"])
 def test_astropyhist_plot_1d(bins):
     try:
         fig, ax = plt.subplots()
         np.random.seed(0)
         data = np.random.randn(100)
-        bars = hist_plot_1d(ax, data, histtype='bar', bins=bins)
+        bars = hist_plot_1d(ax, data, histtype="bar", bins=bins)
         assert np.all([isinstance(b, Patch) for b in bars])
-        assert max([b.get_height() for b in bars]) == 1.
-        assert np.all(np.array([b.get_height() for b in bars]) <= 1.)
+        assert max([b.get_height() for b in bars]) == 1.0
+        assert np.all(np.array([b.get_height() for b in bars]) <= 1.0)
     except ImportError:
-        if 'astropy' not in sys.modules:
+        if "astropy" not in sys.modules:
             pass
 
 
@@ -490,7 +520,7 @@ def test_hist_plot_2d():
     assert xmin > -10 and xmax < 10 and ymin > -10 and ymax < 10
 
     data_x, data_y = np.random.uniform(-10, 10, (2, 1000))
-    weights = np.exp(-(data_x**2 + data_y**2)/2)
+    weights = np.exp(-(data_x**2 + data_y**2) / 2)
     hist_plot_2d(ax, data_x, data_y, weights=weights, bins=30)
     xmin, xmax = ax.get_xlim()
     ymin, ymax = ax.get_ylim()
@@ -502,8 +532,8 @@ def test_hist_plot_2d():
     hist_plot_2d(ax, data_x, data_y, levels=[0.95, 0.68], cmax=50)
 
 
-@pytest.mark.parametrize('plot_1d', [kde_plot_1d, fastkde_plot_1d])
-@pytest.mark.parametrize('s', [1, 2])
+@pytest.mark.parametrize("plot_1d", [kde_plot_1d, fastkde_plot_1d])
+@pytest.mark.parametrize("s", [1, 2])
 def test_1d_density_kwarg(plot_1d, s):
     try:
         np.random.seed(0)
@@ -517,7 +547,7 @@ def test_1d_density_kwarg(plot_1d, s):
 
         # kde density = False:
         k = plot_1d(ax, x, density=False)[0]
-        f = interp1d(k.get_xdata(), k.get_ydata(), 'cubic', assume_sorted=True)
+        f = interp1d(k.get_xdata(), k.get_ydata(), "cubic", assume_sorted=True)
         kde_height = f(0)
         assert kde_height == pytest.approx(1, rel=0.1)
 
@@ -528,18 +558,19 @@ def test_1d_density_kwarg(plot_1d, s):
 
         # kde density = True:
         k = plot_1d(ax, x, density=True)[0]
-        f = interp1d(k.get_xdata(), k.get_ydata(), 'cubic', assume_sorted=True)
+        f = interp1d(k.get_xdata(), k.get_ydata(), "cubic", assume_sorted=True)
         kde_height = f(0)
         gauss_norm = 1 / np.sqrt(2 * np.pi * s**2)
         assert kde_height == pytest.approx(gauss_norm, rel=0.1)
 
     except ImportError:
-        if 'fastkde' not in sys.modules:
+        if "fastkde" not in sys.modules:
             pass
 
 
-@pytest.mark.parametrize('contour_plot_2d', [kde_contour_plot_2d,
-                                             fastkde_contour_plot_2d])
+@pytest.mark.parametrize(
+    "contour_plot_2d", [kde_contour_plot_2d, fastkde_contour_plot_2d]
+)
 def test_contour_plot_2d(contour_plot_2d):
     try:
         fig, ax = plt.subplots()
@@ -560,30 +591,30 @@ def test_contour_plot_2d(contour_plot_2d):
         contour_plot_2d(ax, data_x, data_y, q=0)
 
         # Check unfilled
-        cmap = basic_cmap('C2')
+        cmap = basic_cmap("C2")
         fig, ax = plt.subplots()
-        cf1, ct1 = contour_plot_2d(ax, data_x, data_y, facecolor='C2')
-        cf2, ct2 = contour_plot_2d(ax, data_x, data_y, fc='None', cmap=cmap)
+        cf1, ct1 = contour_plot_2d(ax, data_x, data_y, facecolor="C2")
+        cf2, ct2 = contour_plot_2d(ax, data_x, data_y, fc="None", cmap=cmap)
         # filled `contourf` and unfilled `contour` colors are the same:
         assert cf1.tcolors[0] == ct2.tcolors[0]
         assert cf1.tcolors[1] == ct2.tcolors[1]
-        cf, ct = contour_plot_2d(ax, data_x, data_y, edgecolor='C0')
-        assert ct.colors == 'C0'
-        cf, ct = contour_plot_2d(ax, data_x, data_y, ec='C0', cmap=plt.cm.Reds)
+        cf, ct = contour_plot_2d(ax, data_x, data_y, edgecolor="C0")
+        assert ct.colors == "C0"
+        cf, ct = contour_plot_2d(ax, data_x, data_y, ec="C0", cmap=plt.cm.Reds)
         assert cf.get_cmap() == plt.cm.Reds
-        assert ct.colors == 'C0'
+        assert ct.colors == "C0"
         fig, ax = plt.subplots()
         cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None)
         assert cf is None
         assert ct.colors is None
-        assert ct.get_cmap()(1.) == to_rgba('C0')
-        cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None, c='C3')
+        assert ct.get_cmap()(1.0) == to_rgba("C0")
+        cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None, c="C3")
         assert cf is None
         assert ct.colors is None
-        assert ct.get_cmap()(1.) == to_rgba('C3')
-        cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None, ec='C1')
+        assert ct.get_cmap()(1.0) == to_rgba("C3")
+        cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None, ec="C1")
         assert cf is None
-        assert ct.colors == 'C1'
+        assert ct.colors == "C1"
         cf, ct = contour_plot_2d(ax, data_x, data_y, fc=None, cmap=plt.cm.Reds)
         assert cf is None
         assert ct.colors is None
@@ -619,7 +650,7 @@ def test_contour_plot_2d(contour_plot_2d):
             assert ymax == pytest.approx(1, abs=0.01)
 
     except ImportError:
-        if 'fastkde' not in sys.modules:
+        if "fastkde" not in sys.modules:
             pass
 
 
@@ -627,7 +658,7 @@ def test_kde_plot_nplot():
     fig, ax = plt.subplots()
     np.random.seed(0)
     data = np.random.randn(1000)
-    line, = kde_plot_1d(ax, data, ncompress=1000, nplot_1d=200)
+    (line,) = kde_plot_1d(ax, data, ncompress=1000, nplot_1d=200)
     assert line.get_xdata().size == 200
 
     fig, ax = plt.subplots()
@@ -637,12 +668,12 @@ def test_kde_plot_nplot():
     kde_contour_plot_2d(ax, data_x, data_y, ncompress=1000, nplot_2d=900)
 
 
-@pytest.mark.parametrize('contour_plot_2d', [kde_contour_plot_2d,
-                                             fastkde_contour_plot_2d])
-@pytest.mark.parametrize('levels', [[0.9],
-                                    [0.9, 0.6],
-                                    [0.9, 0.6, 0.3],
-                                    [0.9, 0.7, 0.5, 0.3]])
+@pytest.mark.parametrize(
+    "contour_plot_2d", [kde_contour_plot_2d, fastkde_contour_plot_2d]
+)
+@pytest.mark.parametrize(
+    "levels", [[0.9], [0.9, 0.6], [0.9, 0.6, 0.3], [0.9, 0.7, 0.5, 0.3]]
+)
 def test_contour_plot_2d_levels(contour_plot_2d, levels):
     try:
         np.random.seed(42)
@@ -660,12 +691,12 @@ def test_contour_plot_2d_levels(contour_plot_2d, levels):
         color2 = ax2.collections[0].get_edgecolor()  # unfilled line color
         assert_array_equal(color1, color2)
         # last level
-        color1 = ax1.collections[len(levels)-1].get_facecolor()
-        color2 = ax2.collections[len(levels)-1].get_edgecolor()
+        color1 = ax1.collections[len(levels) - 1].get_facecolor()
+        color2 = ax2.collections[len(levels) - 1].get_edgecolor()
         assert_array_equal(color1, color2)
 
     except ImportError:
-        if 'fastkde' not in sys.modules:
+        if "fastkde" not in sys.modules:
             pass
 
 
@@ -674,29 +705,34 @@ def test_scatter_plot_2d():
     np.random.seed(2)
     data_x = np.random.randn(100)
     data_y = np.random.randn(100)
-    lines, = scatter_plot_2d(ax, data_x, data_y)
+    (lines,) = scatter_plot_2d(ax, data_x, data_y)
     assert isinstance(lines, Line2D)
 
     fig, ax = plt.subplots()
-    points, = scatter_plot_2d(ax, data_x, data_y, color='C0', lw=1)
-    assert (points.get_color() == 'C0')
-    points, = scatter_plot_2d(ax, data_x, data_y, cmap=plt.cm.viridis)
-    assert (points.get_color() == plt.cm.viridis(0.68))
-    points, = scatter_plot_2d(ax, data_x, data_y, c='C0', fc='C1', ec='C2')
-    assert (points.get_color() == 'C0')
-    assert (points.get_markerfacecolor() == 'C1')
-    assert (points.get_markeredgecolor() == 'C2')
+    (points,) = scatter_plot_2d(ax, data_x, data_y, color="C0", lw=1)
+    assert points.get_color() == "C0"
+    (points,) = scatter_plot_2d(ax, data_x, data_y, cmap=plt.cm.viridis)
+    assert points.get_color() == plt.cm.viridis(0.68)
+    (points,) = scatter_plot_2d(ax, data_x, data_y, c="C0", fc="C1", ec="C2")
+    assert points.get_color() == "C0"
+    assert points.get_markerfacecolor() == "C1"
+    assert points.get_markeredgecolor() == "C2"
 
     # Check that q is ignored
     fig, ax = plt.subplots()
     scatter_plot_2d(ax, data_x, data_y, q=0)
 
 
-@pytest.mark.parametrize('sigmas', [(1, '1sigma', 0.682689492137086),
-                                    (2, '2sigma', 0.954499736103642),
-                                    (3, '3sigma', 0.997300203936740),
-                                    (4, '4sigma', 0.999936657516334),
-                                    (5, '5sigma', 0.999999426696856)])
+@pytest.mark.parametrize(
+    "sigmas",
+    [
+        (1, "1sigma", 0.682689492137086),
+        (2, "2sigma", 0.954499736103642),
+        (3, "3sigma", 0.997300203936740),
+        (4, "4sigma", 0.999936657516334),
+        (5, "5sigma", 0.999999426696856),
+    ],
+)
 def test_quantile_plot_interval_str(sigmas):
     qi1, qi2 = quantile_plot_interval(q=sigmas[0])
     qs1, qs2 = quantile_plot_interval(q=sigmas[1])
@@ -706,14 +742,14 @@ def test_quantile_plot_interval_str(sigmas):
     assert qs2 == pytest.approx(0.5 + sigmas[2] / 2)
 
 
-@pytest.mark.parametrize('floats', [0, 0.1, 0.9])
+@pytest.mark.parametrize("floats", [0, 0.1, 0.9])
 def test_quantile_plot_interval_float(floats):
     q1, q2 = quantile_plot_interval(q=floats)
     assert q1 == min(floats, 1 - floats)
     assert q2 == max(floats, 1 - floats)
 
 
-@pytest.mark.parametrize('q1, q2', [(0, 1), (0.1, 0.9), (0, 0.9), (0.1, 1)])
+@pytest.mark.parametrize("q1, q2", [(0, 1), (0.1, 0.9), (0, 0.9), (0.1, 1)])
 def test_quantile_plot_interval_tuple(q1, q2):
     _q1, _q2 = quantile_plot_interval(q=(q1, q2))
     assert _q1 == q1

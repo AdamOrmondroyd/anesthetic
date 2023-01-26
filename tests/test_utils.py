@@ -4,12 +4,19 @@ import pytest
 from scipy import special as sp
 from numpy.testing import assert_array_equal
 from anesthetic import read_chains
-from anesthetic.utils import (nest_level, compute_nlive, unique, is_int,
-                              iso_probability_contours,
-                              iso_probability_contours_from_samples,
-                              logsumexp, sample_compression_1d,
-                              triangular_sample_compression_2d,
-                              insertion_p_value, compress_weights)
+from anesthetic.utils import (
+    nest_level,
+    compute_nlive,
+    unique,
+    is_int,
+    iso_probability_contours,
+    iso_probability_contours_from_samples,
+    logsumexp,
+    sample_compression_1d,
+    triangular_sample_compression_2d,
+    insertion_p_value,
+    compress_weights,
+)
 
 
 def test_compress_weights():
@@ -25,11 +32,11 @@ def test_compress_weights():
 def test_nest_level():
     assert nest_level(0) == 0
     assert nest_level([]) == 1
-    assert nest_level(['a']) == 1
-    assert nest_level(['a', 'b']) == 1
-    assert nest_level([['a'], 'b']) == 2
-    assert nest_level(['a', ['b']]) == 2
-    assert nest_level([['a'], ['b']]) == 2
+    assert nest_level(["a"]) == 1
+    assert nest_level(["a", "b"]) == 1
+    assert nest_level([["a"], "b"]) == 2
+    assert nest_level(["a", ["b"]]) == 2
+    assert nest_level([["a"], ["b"]]) == 2
 
 
 def test_compute_nlive():
@@ -38,8 +45,7 @@ def test_compute_nlive():
     nlive = 500
     ncompress = 100
     logL = np.cumsum(np.random.rand(nlive, ncompress), axis=1)
-    logL_birth = np.concatenate((np.ones((nlive, 1))*-np.inf, logL[:, :-1]),
-                                axis=1)
+    logL_birth = np.concatenate((np.ones((nlive, 1)) * -np.inf, logL[:, :-1]), axis=1)
     i = np.argsort(logL.flatten())
     logL = logL.flatten()[i]
     logL_birth = logL_birth.flatten()[i]
@@ -48,7 +54,7 @@ def test_compute_nlive():
     nlives = compute_nlive(logL, logL_birth)
 
     # Check the first half are constant
-    assert_array_equal(nlives[:len(nlives)//2], nlive)
+    assert_array_equal(nlives[: len(nlives) // 2], nlive)
 
     # Check one point at the end
     assert nlives[-1] == 1
@@ -57,15 +63,16 @@ def test_compute_nlive():
     assert nlives.max() <= nlive
 
     # Check length
-    assert (len(nlives) == len(logL))
+    assert len(nlives) == len(logL)
 
 
 def test_unique():
     assert unique([3, 2, 1, 4, 1, 3]) == [3, 2, 1, 4]
 
 
-@pytest.mark.parametrize('ipc', [iso_probability_contours,
-                                 iso_probability_contours_from_samples])
+@pytest.mark.parametrize(
+    "ipc", [iso_probability_contours, iso_probability_contours_from_samples]
+)
 def test_iso_probability_contours(ipc):
     p = np.random.randn(10)
     ipc(p)
@@ -105,8 +112,8 @@ def test_sample_compression_1d():
 def test_is_int():
     assert is_int(1)
     assert is_int(np.int64(1))
-    assert not is_int(1.)
-    assert not is_int(np.float64(1.))
+    assert not is_int(1.0)
+    assert not is_int(np.float64(1.0))
 
 
 def test_logsumexpinf():
@@ -119,9 +126,9 @@ def test_logsumexpinf():
     assert logsumexp(a, b=b) == sp.logsumexp(a, b=b)
     b[0] = -np.inf
     with warnings.catch_warnings():
-        warnings.filterwarnings('ignore',
-                                'invalid value encountered in multiply',
-                                RuntimeWarning)
+        warnings.filterwarnings(
+            "ignore", "invalid value encountered in multiply", RuntimeWarning
+        )
         assert np.isnan(sp.logsumexp(a, b=b))
     assert np.isfinite(logsumexp(a, b=b))
 
@@ -129,46 +136,46 @@ def test_logsumexpinf():
 def test_insertion_p_value():
     np.random.seed(3)
     nlive = 500
-    ndead = nlive*20
+    ndead = nlive * 20
     indexes = np.random.randint(0, nlive, ndead)
     ks_results = insertion_p_value(indexes, nlive)
-    assert 'D' in ks_results
-    assert 'p-value' in ks_results
-    assert 'sample_size' in ks_results
+    assert "D" in ks_results
+    assert "p-value" in ks_results
+    assert "sample_size" in ks_results
 
-    assert 'iterations' not in ks_results
-    assert 'nbatches' not in ks_results
-    assert 'p_value_uncorrected' not in ks_results
+    assert "iterations" not in ks_results
+    assert "nbatches" not in ks_results
+    assert "p_value_uncorrected" not in ks_results
 
-    assert ks_results['p-value'] > 0.05
-    assert ks_results['sample_size'] == ndead
+    assert ks_results["p-value"] > 0.05
+    assert ks_results["sample_size"] == ndead
 
     ks_results = insertion_p_value(indexes, nlive, 1)
-    assert 'D' in ks_results
-    assert 'p-value' in ks_results
-    assert 'sample_size' in ks_results
-    assert 'iterations' in ks_results
-    assert 'nbatches' in ks_results
-    assert 'uncorrected p-value' in ks_results
+    assert "D" in ks_results
+    assert "p-value" in ks_results
+    assert "sample_size" in ks_results
+    assert "iterations" in ks_results
+    assert "nbatches" in ks_results
+    assert "uncorrected p-value" in ks_results
 
-    assert ks_results['p-value'] > 0.05
-    assert ks_results['uncorrected p-value'] < ks_results['p-value']
+    assert ks_results["p-value"] > 0.05
+    assert ks_results["uncorrected p-value"] < ks_results["p-value"]
 
-    iterations = ks_results['iterations']
+    iterations = ks_results["iterations"]
     assert isinstance(iterations, tuple)
     assert len(iterations) == 2
     assert iterations[1] - iterations[0] == nlive
-    assert ks_results['nbatches'] == 20
+    assert ks_results["nbatches"] == 20
 
 
 def test_p_values_from_sample():
     np.random.seed(3)
-    ns = read_chains('./tests/example_data/pc')
+    ns = read_chains("./tests/example_data/pc")
     ns._compute_insertion_indexes()
     nlive = len(ns.live_points())
 
     ks_results = insertion_p_value(ns.insertion[nlive:-nlive], nlive)
-    assert ks_results['p-value'] > 0.05
+    assert ks_results["p-value"] > 0.05
 
     ks_results = insertion_p_value(ns.insertion[nlive:-nlive], nlive, batch=1)
-    assert ks_results['p-value'] > 0.05
+    assert ks_results["p-value"] > 0.05

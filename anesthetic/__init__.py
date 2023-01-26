@@ -25,21 +25,25 @@ def _anesthetic_override(_get_plot_backend):
     'anesthetic.plotting._matplotlib'. This is necessary since any users of
     WeightedSamples should not be using the original backend.
     """
+
     def wrapper(backend=None):
-        if backend == 'matplotlib':
-            return _get_plot_backend('anesthetic.plotting._matplotlib')
+        if backend == "matplotlib":
+            return _get_plot_backend("anesthetic.plotting._matplotlib")
         return _get_plot_backend(backend)
+
     return wrapper
 
 
 # Override the two places where _get_plot_backend is defined
-pandas.plotting._core._get_plot_backend = \
-        _anesthetic_override(pandas.plotting._core._get_plot_backend)
-pandas.plotting._misc._get_plot_backend = \
-        _anesthetic_override(pandas.plotting._misc._get_plot_backend)
+pandas.plotting._core._get_plot_backend = _anesthetic_override(
+    pandas.plotting._core._get_plot_backend
+)
+pandas.plotting._misc._get_plot_backend = _anesthetic_override(
+    pandas.plotting._misc._get_plot_backend
+)
 
 # Set anesthetic.plotting._matplotlib as the actual backend
-pandas.options.plotting.backend = 'anesthetic.plotting._matplotlib'
+pandas.options.plotting.backend = "anesthetic.plotting._matplotlib"
 
 pandas.io.formats.format.DataFrameFormatter = _DataFrameFormatter
 pandas.options.display.max_colwidth = 14

@@ -1,7 +1,6 @@
 """Pandas DataFrame and Series with labelled columns."""
 from pandas import Series, DataFrame, MultiIndex
-from pandas.core.indexing import (_LocIndexer as _LocIndexer_,
-                                  _AtIndexer as _AtIndexer_)
+from pandas.core.indexing import _LocIndexer as _LocIndexer_, _AtIndexer as _AtIndexer_
 import numpy as np
 from functools import cmp_to_key
 
@@ -54,21 +53,33 @@ def ac(funcs, *args):
 
 class _LocIndexer(_LocIndexer_):
     def __getitem__(self, key):
-        return ac([_LocIndexer_("loc", self.obj.drop_labels(i)).__getitem__
-                   for i in self.obj._all_axes()] + [super().__getitem__], key)
+        return ac(
+            [
+                _LocIndexer_("loc", self.obj.drop_labels(i)).__getitem__
+                for i in self.obj._all_axes()
+            ]
+            + [super().__getitem__],
+            key,
+        )
 
 
 class _AtIndexer(_AtIndexer_):
     def __getitem__(self, key):
-        return ac([_AtIndexer_("at", self.obj.drop_labels(i)).__getitem__
-                   for i in self.obj._all_axes()] + [super().__getitem__], key)
+        return ac(
+            [
+                _AtIndexer_("at", self.obj.drop_labels(i)).__getitem__
+                for i in self.obj._all_axes()
+            ]
+            + [super().__getitem__],
+            key,
+        )
 
 
 class _LabelledObject(object):
     """Common methods for LabelledSeries and LabelledDataFrame."""
 
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, '_labels'):
+        if not hasattr(self, "_labels"):
             self._labels = ("labels", "labels")
         labels = kwargs.pop(self._labels[0], None)
         super().__init__(*args, **kwargs)
@@ -95,7 +106,7 @@ class _LabelledObject(object):
         if labs:
             return index.to_frame().droplevel(labs)[labs]
         else:
-            return Series('', index=index)
+            return Series("", index=index)
 
     def get_label(self, param, axis=0):
         """Retrieve mapping from paramnames to labels from an axis."""
@@ -131,13 +142,24 @@ class _LabelledObject(object):
         return _AtIndexer("at", self)
 
     def xs(self, key, axis=0, level=None, drop_level=True):
-        return ac([super(_LabelledObject, self.drop_labels(i)).xs
-                   for i in self._all_axes()] + [super().xs],
-                  key, axis, level, drop_level)
+        return ac(
+            [super(_LabelledObject, self.drop_labels(i)).xs for i in self._all_axes()]
+            + [super().xs],
+            key,
+            axis,
+            level,
+            drop_level,
+        )
 
     def __getitem__(self, key):
-        return ac([super(_LabelledObject, self.drop_labels(i)).__getitem__
-                   for i in self._all_axes()] + [super().__getitem__], key)
+        return ac(
+            [
+                super(_LabelledObject, self.drop_labels(i)).__getitem__
+                for i in self._all_axes()
+            ]
+            + [super().__getitem__],
+            key,
+        )
 
     def set_labels(self, labels, axis=0, inplace=False, level=None):
         """Set labels along an axis."""
@@ -152,8 +174,7 @@ class _LabelledObject(object):
             if labs:
                 result = result.drop_labels(axis)
         else:
-            names = [n for n in result._get_axis(axis).names
-                     if n != labs]
+            names = [n for n in result._get_axis(axis).names if n != labs]
             index = [result._get_axis(axis).get_level_values(n) for n in names]
             if level is None:
                 if labs:
@@ -172,12 +193,12 @@ class _LabelledObject(object):
         else:
             return result.__finalize__(self, "set_labels")
 
-    def reset_index(self, level=None, drop=False, inplace=False,
-                    *args, **kwargs):
+    def reset_index(self, level=None, drop=False, inplace=False, *args, **kwargs):
         """Reset the index, retaining labels."""
         labels = self.get_labels()
-        answer = super().reset_index(level=level, drop=drop,
-                                     inplace=False, *args, **kwargs)
+        answer = super().reset_index(
+            level=level, drop=drop, inplace=False, *args, **kwargs
+        )
         answer.set_labels(labels, inplace=True)
         if inplace:
             self._update_inplace(answer)
@@ -188,7 +209,7 @@ class _LabelledObject(object):
 class LabelledSeries(_LabelledObject, Series):
     """Labelled version of pandas.Series."""
 
-    _metadata = Series._metadata + ['_labels']
+    _metadata = Series._metadata + ["_labels"]
 
     @property
     def _constructor(self):
@@ -202,7 +223,7 @@ class LabelledSeries(_LabelledObject, Series):
 class LabelledDataFrame(_LabelledObject, DataFrame):
     """Labelled version of pandas.DataFrame."""
 
-    _metadata = DataFrame._metadata + ['_labels']
+    _metadata = DataFrame._metadata + ["_labels"]
 
     @property
     def _constructor(self):

@@ -2,13 +2,13 @@
 from pandas.core.indexes.multi import sparsify_labels
 from pandas.io.formats.format import (
     DataFrameFormatter as DataFrameFormatter,
-    _make_fixed_width, is_numeric_dtype
+    _make_fixed_width,
+    is_numeric_dtype,
 )
 from pandas import MultiIndex
 
 
 class _DataFrameFormatter(DataFrameFormatter):
-
     def _get_formatted_column_labels(self, frame):
         columns = frame.columns
         if isinstance(columns, MultiIndex):
@@ -25,7 +25,8 @@ class _DataFrameFormatter(DataFrameFormatter):
                     y not in self.formatters
                     and need_leadsp[x]
                     and not restrict_formatting
-                ): return " " + y
+                ):
+                    return " " + y
                 return y
 
             str_columns = list(

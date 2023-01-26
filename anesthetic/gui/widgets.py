@@ -171,11 +171,13 @@ class Slider(Widget):
 
     """
 
-    def __init__(self, fig, gridspec, action, text,
-                 valmin, valmax, valinit, orientation):
+    def __init__(
+        self, fig, gridspec, action, text, valmin, valmax, valinit, orientation
+    ):
         super().__init__(fig, gridspec)
-        self.slider = mplSlider(self.ax, text, valmin, valmax, valinit=valinit,
-                                orientation=orientation)
+        self.slider = mplSlider(
+            self.ax, text, valmin, valmax, valinit=valinit, orientation=orientation
+        )
         self.slider.on_changed(action)
 
     def set_text(self, text):
@@ -244,17 +246,18 @@ class TrianglePlot(Widget):
                     self.fig.delaxes(ax)
 
         # Set up the axes
-        _, self.ax = make_2d_axes(params, upper=False, labels=labels,
-                                  fig=self.fig, subplot_spec=self.gridspec)
+        _, self.ax = make_2d_axes(
+            params, upper=False, labels=labels, fig=self.fig, subplot_spec=self.gridspec
+        )
 
         # Plot no points  points.
         for y, row in self.ax.iterrows():
             for x, ax in row.items():
                 if ax is not None:
                     if x == y:
-                        ax.twin.plot([None], [None], 'k-')
+                        ax.twin.plot([None], [None], "k-")
                     else:
-                        ax.plot([None], [None], 'k.')
+                        ax.plot([None], [None], "k.")
 
     def update(self, f):
         """Update the points in the triangle plot using f function.
@@ -270,7 +273,7 @@ class TrianglePlot(Widget):
             for x, ax in row.items():
                 if ax is not None:
                     if x == y:
-                        datx, daty = histogram(f(x), bins='auto')
+                        datx, daty = histogram(f(x), bins="auto")
                         ax.twin.lines[0].set_xdata(datx)
                         ax.twin.lines[0].set_ydata(daty)
                     else:

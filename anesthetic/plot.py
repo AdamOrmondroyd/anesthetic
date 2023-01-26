@@ -16,6 +16,7 @@ from scipy.stats import gaussian_kde
 from scipy.special import erf
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.axes import Axes
+
 try:
     from astropy.visualization import hist
 except ImportError:
@@ -30,22 +31,39 @@ from matplotlib.ticker import MaxNLocator, AutoMinorLocator
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.transforms import Affine2D
 from anesthetic.utils import nest_level
-from anesthetic.utils import (sample_compression_1d, quantile,
-                              triangular_sample_compression_2d,
-                              iso_probability_contours,
-                              match_contour_to_contourf)
+from anesthetic.utils import (
+    sample_compression_1d,
+    quantile,
+    triangular_sample_compression_2d,
+    iso_probability_contours,
+    match_contour_to_contourf,
+)
 from anesthetic.boundary import cut_and_normalise_gaussian
 
 
 class AxesSeries(Series):
     """Anesthetic's axes version of `~pandas.Series`."""
 
-    def __init__(self, data=None, index=None, fig=None, ncol=None, labels=None,
-                 gridspec_kw=None, subplot_spec=None, *args, **kwargs):
+    def __init__(
+        self,
+        data=None,
+        index=None,
+        fig=None,
+        ncol=None,
+        labels=None,
+        gridspec_kw=None,
+        subplot_spec=None,
+        *args,
+        **kwargs
+    ):
         if data is None and index is not None:
-            data = self.axes_series(index=index, fig=fig, ncol=ncol,
-                                    gridspec_kw=gridspec_kw,
-                                    subplot_spec=subplot_spec)
+            data = self.axes_series(
+                index=index,
+                fig=fig,
+                ncol=ncol,
+                gridspec_kw=gridspec_kw,
+                subplot_spec=subplot_spec,
+            )
             self._set_xlabels(axes=data, labels=labels)
         super().__init__(data=data, index=index, *args, **kwargs)
 
@@ -58,8 +76,7 @@ class AxesSeries(Series):
         return AxesDataFrame
 
     @staticmethod
-    def axes_series(index, fig, ncol=None, gridspec_kw=None,
-                    subplot_spec=None):
+    def axes_series(index, fig, ncol=None, gridspec_kw=None, subplot_spec=None):
         """Set up subplots for `AxesSeries`."""
         axes = Series(np.full(np.shape(index), None), index=index)
         if fig is None:
@@ -70,13 +87,13 @@ class AxesSeries(Series):
         nrow = int(np.ceil(axes.index.size / ncol))
         if gridspec_kw is None:
             gridspec_kw = {}
-        wspace = gridspec_kw.pop('wspace', 0)
+        wspace = gridspec_kw.pop("wspace", 0)
         if subplot_spec is None:
             gs = GridSpec(nrow, ncol, wspace=wspace, **gridspec_kw)
         else:
-            gs = GridSpecFromSubplotSpec(nrow, ncol, wspace=wspace,
-                                         subplot_spec=subplot_spec,
-                                         **gridspec_kw)
+            gs = GridSpecFromSubplotSpec(
+                nrow, ncol, wspace=wspace, subplot_spec=subplot_spec, **gridspec_kw
+            )
         for p, g in zip(axes.index, gs):
             axes[p] = ax = fig.add_subplot(g)
             ax.set_yticks([])
@@ -112,30 +129,42 @@ class AxesSeries(Series):
 class AxesDataFrame(DataFrame):
     """Anesthetic's axes version of `~pandas.DataFrame`."""
 
-    def __init__(self, data=None, index=None, columns=None, fig=None,
-                 lower=True, diagonal=True, upper=True, labels=None,
-                 ticks='inner', gridspec_kw=None, subplot_spec=None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        data=None,
+        index=None,
+        columns=None,
+        fig=None,
+        lower=True,
+        diagonal=True,
+        upper=True,
+        labels=None,
+        ticks="inner",
+        gridspec_kw=None,
+        subplot_spec=None,
+        *args,
+        **kwargs
+    ):
         if data is None and index is not None and columns is not None:
-            position = self._position_frame(index=index,
-                                            columns=columns,
-                                            lower=lower,
-                                            diagonal=diagonal,
-                                            upper=upper)
-            data = self._axes_frame(position=position,
-                                    fig=fig,
-                                    gridspec_kw=gridspec_kw,
-                                    subplot_spec=subplot_spec)
+            position = self._position_frame(
+                index=index,
+                columns=columns,
+                lower=lower,
+                diagonal=diagonal,
+                upper=upper,
+            )
+            data = self._axes_frame(
+                position=position,
+                fig=fig,
+                gridspec_kw=gridspec_kw,
+                subplot_spec=subplot_spec,
+            )
             self._set_labels(axes=data, labels=labels)
             index = data.index
             columns = data.columns
-            self._tick_params(axes=data, direction=ticks, which='both')
-        super().__init__(data=data,
-                         index=index,
-                         columns=columns,
-                         *args, **kwargs)
-        self.tick_params(axis='both', which='both', labelrotation=45,
-                         labelsize='small')
+            self._tick_params(axes=data, direction=ticks, which="both")
+        super().__init__(data=data, index=index, columns=columns, *args, **kwargs)
+        self.tick_params(axis="both", which="both", labelrotation=45, labelsize="small")
 
     @property
     def _constructor(self):
@@ -167,24 +196,26 @@ class AxesDataFrame(DataFrame):
     def _axes_frame(cls, position, fig, gridspec_kw=None, subplot_spec=None):
         """Set up subplots for `AxesDataFrame`."""
         axes = position.copy()
-        axes.dropna(axis=0, how='all', inplace=True)
-        axes.dropna(axis=1, how='all', inplace=True)
+        axes.dropna(axis=0, how="all", inplace=True)
+        axes.dropna(axis=1, how="all", inplace=True)
         if axes.size == 0:
             return axes
         if fig is None:
             fig = plt.figure()
         if gridspec_kw is None:
             gridspec_kw = {}
-        hspace = gridspec_kw.pop('hspace', 0)
-        wspace = gridspec_kw.pop('wspace', 0)
+        hspace = gridspec_kw.pop("hspace", 0)
+        wspace = gridspec_kw.pop("wspace", 0)
         if subplot_spec is None:
-            gs = GridSpec(*axes.shape, hspace=hspace, wspace=wspace,
-                          **gridspec_kw)
+            gs = GridSpec(*axes.shape, hspace=hspace, wspace=wspace, **gridspec_kw)
         else:
-            gs = GridSpecFromSubplotSpec(*axes.shape,
-                                         hspace=hspace, wspace=wspace,
-                                         subplot_spec=subplot_spec,
-                                         **gridspec_kw)
+            gs = GridSpecFromSubplotSpec(
+                *axes.shape,
+                hspace=hspace,
+                wspace=wspace,
+                subplot_spec=subplot_spec,
+                **gridspec_kw
+            )
         axes[:][:] = None
         for j, y in enumerate(axes.index[::-1]):
             for i, x in enumerate(axes.columns):
@@ -200,26 +231,23 @@ class AxesDataFrame(DataFrame):
                         axes[x][y].twin = axes[x][y].twinx()
                         axes[x][y].twin.set_yticks([])
                         cls.make_diagonal(axes[x][y])
-                        axes[x][y].position = 'diagonal'
+                        axes[x][y].position = "diagonal"
                         axes[x][y].twin.xaxis.set_major_locator(
-                            MaxNLocator(3, prune='both'))
-                        axes[x][y].twin.xaxis.set_minor_locator(
-                            AutoMinorLocator(1))
-                        axes[x][y].yaxis.set_major_locator(
-                            MaxNLocator(3, prune='both'))
+                            MaxNLocator(3, prune="both")
+                        )
+                        axes[x][y].twin.xaxis.set_minor_locator(AutoMinorLocator(1))
+                        axes[x][y].yaxis.set_major_locator(MaxNLocator(3, prune="both"))
                         axes[x][y].yaxis.set_minor_locator(AutoMinorLocator(1))
                     else:
                         if position[x][y] == 1:
-                            axes[x][y].position = 'upper'
+                            axes[x][y].position = "upper"
                             cls.make_offdiagonal(axes[x][y])
                         elif position[x][y] == -1:
-                            axes[x][y].position = 'lower'
+                            axes[x][y].position = "lower"
                             cls.make_offdiagonal(axes[x][y])
-                        axes[x][y].yaxis.set_major_locator(
-                            MaxNLocator(3, prune='both'))
+                        axes[x][y].yaxis.set_major_locator(MaxNLocator(3, prune="both"))
                         axes[x][y].yaxis.set_minor_locator(AutoMinorLocator(1))
-                    axes[x][y].xaxis.set_major_locator(
-                        MaxNLocator(3, prune='both'))
+                    axes[x][y].xaxis.set_major_locator(MaxNLocator(3, prune="both"))
                     axes[x][y].xaxis.set_minor_locator(AutoMinorLocator(1))
         return axes
 
@@ -228,19 +256,25 @@ class AxesDataFrame(DataFrame):
         """Link x and y axes limits."""
 
         class DiagonalAxes(type(ax)):
-            def set_xlim(self, left=None, right=None, emit=True, auto=False,
-                         xmin=None, xmax=None):
-                super().set_ylim(bottom=left, top=right, emit=True, auto=auto,
-                                 ymin=xmin, ymax=xmax)
-                return super().set_xlim(left=left, right=right, emit=emit,
-                                        auto=auto, xmin=xmin, xmax=xmax)
+            def set_xlim(
+                self, left=None, right=None, emit=True, auto=False, xmin=None, xmax=None
+            ):
+                super().set_ylim(
+                    bottom=left, top=right, emit=True, auto=auto, ymin=xmin, ymax=xmax
+                )
+                return super().set_xlim(
+                    left=left, right=right, emit=emit, auto=auto, xmin=xmin, xmax=xmax
+                )
 
-            def set_ylim(self, bottom=None, top=None, emit=True, auto=False,
-                         ymin=None, ymax=None):
-                super().set_xlim(left=bottom, right=top, emit=True, auto=auto,
-                                 xmin=ymin, xmax=ymax)
-                return super().set_ylim(bottom=bottom, top=top, emit=emit,
-                                        auto=auto, ymin=ymin, ymax=ymax)
+            def set_ylim(
+                self, bottom=None, top=None, emit=True, auto=False, ymin=None, ymax=None
+            ):
+                super().set_xlim(
+                    left=bottom, right=top, emit=True, auto=auto, xmin=ymin, xmax=ymax
+                )
+                return super().set_ylim(
+                    bottom=bottom, top=top, emit=emit, auto=auto, ymin=ymin, ymax=ymax
+                )
 
             def get_legend_handles_labels(self, *args, **kwargs):
                 return self.twin.get_legend_handles_labels(*args, **kwargs)
@@ -255,28 +289,30 @@ class AxesDataFrame(DataFrame):
         """Linking x to y axes limits in triangle plots."""
 
         class OffDiagonalAxes(type(ax)):
-            def set_xlim(self, left=None, right=None, emit=True, auto=False,
-                         xmin=None, xmax=None):
-                left, right = super().set_xlim(left=left, right=right,
-                                               emit=emit,
-                                               auto=auto, xmin=xmin, xmax=xmax)
+            def set_xlim(
+                self, left=None, right=None, emit=True, auto=False, xmin=None, xmax=None
+            ):
+                left, right = super().set_xlim(
+                    left=left, right=right, emit=emit, auto=auto, xmin=xmin, xmax=xmax
+                )
                 if emit:
-                    self.callbacks.process('xlim_changed', self)
+                    self.callbacks.process("xlim_changed", self)
                     # Call all other x-axes that are shared with this one
-                    for other in self._shared_axes['x'].get_siblings(self):
+                    for other in self._shared_axes["x"].get_siblings(self):
                         if other is not self:
                             other.set_xlim(left, right, emit=False, auto=auto)
                 return left, right
 
-            def set_ylim(self, bottom=None, top=None, emit=True, auto=False,
-                         ymin=None, ymax=None):
-                bottom, top = super().set_ylim(bottom=bottom, top=top,
-                                               emit=emit,
-                                               auto=auto, ymin=ymin, ymax=ymax)
+            def set_ylim(
+                self, bottom=None, top=None, emit=True, auto=False, ymin=None, ymax=None
+            ):
+                bottom, top = super().set_ylim(
+                    bottom=bottom, top=top, emit=emit, auto=auto, ymin=ymin, ymax=ymax
+                )
                 if emit:
-                    self.callbacks.process('ylim_changed', self)
+                    self.callbacks.process("ylim_changed", self)
                     # Call all other y-axes that are shared with this one
-                    for other in self._shared_axes['y'].get_siblings(self):
+                    for other in self._shared_axes["y"].get_siblings(self):
                         if other is not self:
                             other.set_ylim(bottom, top, emit=False, auto=auto)
                 return bottom, top
@@ -314,65 +350,89 @@ class AxesDataFrame(DataFrame):
         self._set_labels(axes=self, labels=labels, **kwargs)
 
     @staticmethod
-    def _tick_params(axes, direction='inner', **kwargs):
-        if direction not in ['inner', 'outer', None]:
-            raise ValueError("tick direction=%s was requested, but tick "
-                             "direction can only be one of "
-                             "['outer', 'inner', None]." % direction)
+    def _tick_params(axes, direction="inner", **kwargs):
+        if direction not in ["inner", "outer", None]:
+            raise ValueError(
+                "tick direction=%s was requested, but tick "
+                "direction can only be one of "
+                "['outer', 'inner', None]." % direction
+            )
 
         # left and right ticks and labels
         for y, ax in axes.iterrows():
             ax_ = ax.dropna()
-            if len(ax_) and direction == 'inner':
+            if len(ax_) and direction == "inner":
                 for i, a in enumerate(ax_):
                     if i == 0:  # first column
-                        if a.position == 'diagonal' and len(ax_) == 1:
-                            a.tick_params('y', left=False, labelleft=False,
-                                          **kwargs)
+                        if a.position == "diagonal" and len(ax_) == 1:
+                            a.tick_params("y", left=False, labelleft=False, **kwargs)
                         else:
-                            a.tick_params('y', left=True, labelleft=True,
-                                          **kwargs)
-                    elif a.position == 'diagonal':  # not first column
+                            a.tick_params("y", left=True, labelleft=True, **kwargs)
+                    elif a.position == "diagonal":  # not first column
                         tl = a.yaxis.majorTicks[0].tick1line.get_markersize()
-                        a.tick_params('y', direction='out', length=tl / 2,
-                                      left=True, labelleft=False, **kwargs)
+                        a.tick_params(
+                            "y",
+                            direction="out",
+                            length=tl / 2,
+                            left=True,
+                            labelleft=False,
+                            **kwargs
+                        )
                     else:  # not diagonal and not first column
-                        a.tick_params('y', direction='inout',
-                                      left=True, labelleft=False, **kwargs)
-            elif len(ax_) and direction == 'outer':  # no inner ticks
+                        a.tick_params(
+                            "y", direction="inout", left=True, labelleft=False, **kwargs
+                        )
+            elif len(ax_) and direction == "outer":  # no inner ticks
                 for a in ax_[1:]:
-                    a.tick_params('y', left=False, labelleft=False, **kwargs)
+                    a.tick_params("y", left=False, labelleft=False, **kwargs)
             elif len(ax_) and direction is None:  # no ticks at all
                 for a in ax_:
-                    a.tick_params('y', left=False, right=False,
-                                  labelleft=False, labelright=False, **kwargs)
+                    a.tick_params(
+                        "y",
+                        left=False,
+                        right=False,
+                        labelleft=False,
+                        labelright=False,
+                        **kwargs
+                    )
 
         # bottom and top ticks and labels
         for x, ax in axes.items():
             ax_ = ax.dropna()
             if len(ax_):
-                if direction == 'inner':
+                if direction == "inner":
                     for i, a in enumerate(ax_):
                         if i == len(ax_) - 1:  # bottom row
-                            a.tick_params('x', bottom=True, labelbottom=True,
-                                          **kwargs)
+                            a.tick_params("x", bottom=True, labelbottom=True, **kwargs)
                         else:  # not bottom row
-                            a.tick_params('x', direction='inout',
-                                          bottom=True, labelbottom=False,
-                                          **kwargs)
-                            if a.position == 'diagonal':
-                                a.twin.tick_params('x', direction='inout',
-                                                   bottom=True,
-                                                   labelbottom=False, **kwargs)
-                elif direction == 'outer':  # no inner ticks
+                            a.tick_params(
+                                "x",
+                                direction="inout",
+                                bottom=True,
+                                labelbottom=False,
+                                **kwargs
+                            )
+                            if a.position == "diagonal":
+                                a.twin.tick_params(
+                                    "x",
+                                    direction="inout",
+                                    bottom=True,
+                                    labelbottom=False,
+                                    **kwargs
+                                )
+                elif direction == "outer":  # no inner ticks
                     for a in ax_[:-1]:
-                        a.tick_params('x', bottom=False, labelbottom=False,
-                                      **kwargs)
+                        a.tick_params("x", bottom=False, labelbottom=False, **kwargs)
                 elif direction is None:  # no ticks at all
                     for a in ax_:
-                        a.tick_params('x', bottom=False, top=False,
-                                      labelbottom=False, labeltop=False,
-                                      **kwargs)
+                        a.tick_params(
+                            "x",
+                            bottom=False,
+                            top=False,
+                            labelbottom=False,
+                            labeltop=False,
+                            **kwargs
+                        )
 
     def tick_params(self, *args, **kwargs):
         """Apply `matplotlib.axes.tick_params` to entire `AxesDataFrame`."""
@@ -414,16 +474,18 @@ class AxesDataFrame(DataFrame):
             Any kwarg that can be passed to `plt.axvline` or `plt.axhline`.
 
         """
-        positions = ['lower' if lower else None,
-                     'diagonal' if diagonal else None,
-                     'upper' if upper else None]
+        positions = [
+            "lower" if lower else None,
+            "diagonal" if diagonal else None,
+            "upper" if upper else None,
+        ]
         for y, rows in self.iterrows():
             for x, ax in rows.items():
                 if ax is not None and ax.position in positions:
                     if x in params:
                         for v in np.atleast_1d(params[x]):
                             ax.axvline(v, **kwargs)
-                    if y in params and ax.position != 'diagonal':
+                    if y in params and ax.position != "diagonal":
                         for v in np.atleast_1d(params[y]):
                             ax.axhline(v, **kwargs)
 
@@ -444,17 +506,19 @@ class AxesDataFrame(DataFrame):
             Any kwarg that can be passed to `plt.axvspan` or `plt.axhspan`.
 
         """
-        kwargs = normalize_kwargs(kwargs, dict(color=['c']))
-        positions = ['lower' if lower else None,
-                     'diagonal' if diagonal else None,
-                     'upper' if upper else None]
+        kwargs = normalize_kwargs(kwargs, dict(color=["c"]))
+        positions = [
+            "lower" if lower else None,
+            "diagonal" if diagonal else None,
+            "upper" if upper else None,
+        ]
         for y, rows in self.iterrows():
             for x, ax in rows.items():
                 if ax is not None and ax.position in positions:
                     if x in params:
                         for vmin, vmax in np.atleast_2d(params[x]):
                             ax.axvspan(vmin, vmax, **kwargs)
-                    if y in params and ax.position != 'diagonal':
+                    if y in params and ax.position != "diagonal":
                         for vmin, vmax in np.atleast_2d(params[y]):
                             ax.axhspan(vmin, vmax, **kwargs)
 
@@ -474,21 +538,29 @@ class AxesDataFrame(DataFrame):
             Any kwarg that can be passed to `plt.scatter`.
 
         """
-        positions = ['lower' if lower else None,
-                     'upper' if upper else None]
-        zorder = kwargs.pop('zorder', None)
+        positions = ["lower" if lower else None, "upper" if upper else None]
+        zorder = kwargs.pop("zorder", None)
         for y, rows in self.iterrows():
             for x, ax in rows.items():
                 if ax is not None and ax.position in positions:
                     if x in params and y in params:
-                        z = max([z.get_zorder() for z in ax.artists +
-                                 ax.collections + ax.lines + ax.patches] + [0])
-                        z = z+1 if zorder is None else zorder
+                        z = max(
+                            [
+                                z.get_zorder()
+                                for z in ax.artists
+                                + ax.collections
+                                + ax.lines
+                                + ax.patches
+                            ]
+                            + [0]
+                        )
+                        z = z + 1 if zorder is None else zorder
                         ax.scatter(params[x], params[y], zorder=z, **kwargs)
 
 
-def make_1d_axes(params, ncol=None, labels=None,
-                 gridspec_kw=None, subplot_spec=None, **fig_kw):
+def make_1d_axes(
+    params, ncol=None, labels=None, gridspec_kw=None, subplot_spec=None, **fig_kw
+):
     """Create a set of axes for plotting 1D marginalised posteriors.
 
     Parameters
@@ -527,26 +599,37 @@ def make_1d_axes(params, ncol=None, labels=None,
 
     """
     # TODO: remove this in version >= 2.1
-    if 'tex' in fig_kw:
+    if "tex" in fig_kw:
         raise NotImplementedError(
             "This is anesthetic 1.0 syntax. You need to update, e.g.\n"
             "make_1d_axes(..., tex=tex)     # anesthetic 1.0\n"
             "make_1d_axes(..., labels=tex)  # anesthetic 2.0"
-            )
-    fig = fig_kw.pop('fig') if 'fig' in fig_kw else plt.figure(**fig_kw)
-    axes = AxesSeries(index=np.atleast_1d(params),
-                      fig=fig,
-                      ncol=ncol,
-                      labels=labels,
-                      gridspec_kw=gridspec_kw,
-                      subplot_spec=subplot_spec)
+        )
+    fig = fig_kw.pop("fig") if "fig" in fig_kw else plt.figure(**fig_kw)
+    axes = AxesSeries(
+        index=np.atleast_1d(params),
+        fig=fig,
+        ncol=ncol,
+        labels=labels,
+        gridspec_kw=gridspec_kw,
+        subplot_spec=subplot_spec,
+    )
     if gridspec_kw is None:
         fig.tight_layout()
     return fig, axes
 
 
-def make_2d_axes(params, labels=None, lower=True, diagonal=True, upper=True,
-                 ticks='inner', gridspec_kw=None, subplot_spec=None, **fig_kw):
+def make_2d_axes(
+    params,
+    labels=None,
+    lower=True,
+    diagonal=True,
+    upper=True,
+    ticks="inner",
+    gridspec_kw=None,
+    subplot_spec=None,
+    **fig_kw
+):
     """Create a set of axes for plotting 2D marginalised posteriors.
 
     Parameters
@@ -595,28 +678,30 @@ def make_2d_axes(params, labels=None, lower=True, diagonal=True, upper=True,
 
     """
     # TODO: remove this in version >= 2.1
-    if 'tex' in fig_kw:
+    if "tex" in fig_kw:
         raise NotImplementedError(
             "This is anesthetic 1.0 syntax. You need to update, e.g.\n"
             "make_2d_axes(..., tex=tex)     # anesthetic 1.0\n"
             "make_2d_axes(..., labels=tex)  # anesthetic 2.0"
-            )
-    fig = fig_kw.pop('fig') if 'fig' in fig_kw else plt.figure(**fig_kw)
+        )
+    fig = fig_kw.pop("fig") if "fig" in fig_kw else plt.figure(**fig_kw)
 
     if nest_level(params) == 2:
         xparams, yparams = params
     else:
         xparams = yparams = params
-    axes = AxesDataFrame(index=yparams,
-                         columns=xparams,
-                         fig=fig,
-                         lower=lower,
-                         diagonal=diagonal,
-                         upper=upper,
-                         labels=labels,
-                         ticks=ticks,
-                         gridspec_kw=gridspec_kw,
-                         subplot_spec=subplot_spec)
+    axes = AxesDataFrame(
+        index=yparams,
+        columns=xparams,
+        fig=fig,
+        lower=lower,
+        diagonal=diagonal,
+        upper=upper,
+        labels=labels,
+        ticks=ticks,
+        gridspec_kw=gridspec_kw,
+        subplot_spec=subplot_spec,
+    )
     return fig, axes
 
 
@@ -666,26 +751,34 @@ def fastkde_plot_1d(ax, data, *args, **kwargs):
     """
     kwargs = normalize_kwargs(
         kwargs,
-        dict(linewidth=['lw'], linestyle=['ls'], color=['c'],
-             facecolor=['fc'], edgecolor=['ec']))
+        dict(
+            linewidth=["lw"],
+            linestyle=["ls"],
+            color=["c"],
+            facecolor=["fc"],
+            edgecolor=["ec"],
+        ),
+    )
 
-    xmin = kwargs.pop('xmin', None)
-    xmax = kwargs.pop('xmax', None)
-    levels = kwargs.pop('levels', [0.95, 0.68])
-    density = kwargs.pop('density', False)
+    xmin = kwargs.pop("xmin", None)
+    xmax = kwargs.pop("xmax", None)
+    levels = kwargs.pop("levels", [0.95, 0.68])
+    density = kwargs.pop("density", False)
 
-    cmap = kwargs.pop('cmap', None)
-    color = kwargs.pop('color', (next(ax._get_lines.prop_cycler)['color']
-                                 if cmap is None else cmap(0.68)))
-    facecolor = kwargs.pop('facecolor', False)
-    if 'edgecolor' in kwargs:
-        edgecolor = kwargs.pop('edgecolor')
+    cmap = kwargs.pop("cmap", None)
+    color = kwargs.pop(
+        "color",
+        (next(ax._get_lines.prop_cycler)["color"] if cmap is None else cmap(0.68)),
+    )
+    facecolor = kwargs.pop("facecolor", False)
+    if "edgecolor" in kwargs:
+        edgecolor = kwargs.pop("edgecolor")
         if edgecolor:
             color = edgecolor
     else:
         edgecolor = color
 
-    q = kwargs.pop('q', 5)
+    q = kwargs.pop("q", 5)
     q = quantile_plot_interval(q=q)
 
     try:
@@ -693,20 +786,27 @@ def fastkde_plot_1d(ax, data, *args, **kwargs):
     except NameError:
         raise ImportError("You need to install fastkde to use fastkde")
     p /= p.max()
-    i = ((x > quantile(x, q[0], p)) & (x < quantile(x, q[-1], p)))
+    i = (x > quantile(x, q[0], p)) & (x < quantile(x, q[-1], p))
 
     area = np.trapz(x=x[i], y=p[i]) if density else 1
-    ans = ax.plot(x[i], p[i]/area, color=color, *args, **kwargs)
+    ans = ax.plot(x[i], p[i] / area, color=color, *args, **kwargs)
 
-    if facecolor and facecolor not in [None, 'None', 'none']:
+    if facecolor and facecolor not in [None, "None", "none"]:
         if facecolor is True:
             facecolor = color
         c = iso_probability_contours(p[i], contours=levels)
         cmap = basic_cmap(facecolor)
         fill = []
-        for j in range(len(c)-1):
-            fill.append(ax.fill_between(x[i], p[i], where=p[i] >= c[j],
-                        color=cmap(c[j]), edgecolor=edgecolor))
+        for j in range(len(c) - 1):
+            fill.append(
+                ax.fill_between(
+                    x[i],
+                    p[i],
+                    where=p[i] >= c[j],
+                    color=cmap(c[j]),
+                    edgecolor=edgecolor,
+                )
+            )
 
         return ans, fill
 
@@ -769,32 +869,40 @@ def kde_plot_1d(ax, data, *args, **kwargs):
     """
     kwargs = normalize_kwargs(
         kwargs,
-        dict(linewidth=['lw'], linestyle=['ls'], color=['c'],
-             facecolor=['fc'], edgecolor=['ec']))
+        dict(
+            linewidth=["lw"],
+            linestyle=["ls"],
+            color=["c"],
+            facecolor=["fc"],
+            edgecolor=["ec"],
+        ),
+    )
 
-    weights = kwargs.pop('weights', None)
+    weights = kwargs.pop("weights", None)
     if weights is not None:
         data = data[weights != 0]
         weights = weights[weights != 0]
 
-    ncompress = kwargs.pop('ncompress', False)
-    nplot = kwargs.pop('nplot_1d', 100)
-    bw_method = kwargs.pop('bw_method', None)
-    levels = kwargs.pop('levels', [0.95, 0.68])
-    density = kwargs.pop('density', False)
+    ncompress = kwargs.pop("ncompress", False)
+    nplot = kwargs.pop("nplot_1d", 100)
+    bw_method = kwargs.pop("bw_method", None)
+    levels = kwargs.pop("levels", [0.95, 0.68])
+    density = kwargs.pop("density", False)
 
-    cmap = kwargs.pop('cmap', None)
-    color = kwargs.pop('color', (next(ax._get_lines.prop_cycler)['color']
-                                 if cmap is None else cmap(0.68)))
-    facecolor = kwargs.pop('facecolor', False)
-    if 'edgecolor' in kwargs:
-        edgecolor = kwargs.pop('edgecolor')
+    cmap = kwargs.pop("cmap", None)
+    color = kwargs.pop(
+        "color",
+        (next(ax._get_lines.prop_cycler)["color"] if cmap is None else cmap(0.68)),
+    )
+    facecolor = kwargs.pop("facecolor", False)
+    if "edgecolor" in kwargs:
+        edgecolor = kwargs.pop("edgecolor")
         if edgecolor:
             color = edgecolor
     else:
         edgecolor = color
 
-    q = kwargs.pop('q', 5)
+    q = kwargs.pop("q", 5)
     q = quantile_plot_interval(q=q)
     xmin = quantile(data, q[0], weights)
     xmax = quantile(data, q[-1], weights)
@@ -809,17 +917,20 @@ def kde_plot_1d(ax, data, *args, **kwargs):
     pp = cut_and_normalise_gaussian(x, p, bw, xmin=data.min(), xmax=data.max())
     pp /= pp.max()
     area = np.trapz(x=x, y=pp) if density else 1
-    ans = ax.plot(x, pp/area, color=color, *args, **kwargs)
+    ans = ax.plot(x, pp / area, color=color, *args, **kwargs)
 
-    if facecolor and facecolor not in [None, 'None', 'none']:
+    if facecolor and facecolor not in [None, "None", "none"]:
         if facecolor is True:
             facecolor = color
         c = iso_probability_contours(pp, contours=levels)
         cmap = basic_cmap(facecolor)
         fill = []
-        for j in range(len(c)-1):
-            fill.append(ax.fill_between(x, pp, where=pp >= c[j],
-                        color=cmap(c[j]), edgecolor=edgecolor))
+        for j in range(len(c) - 1):
+            fill.append(
+                ax.fill_between(
+                    x, pp, where=pp >= c[j], color=cmap(c[j]), edgecolor=edgecolor
+                )
+            )
 
         ans = ans, fill
 
@@ -867,37 +978,53 @@ def hist_plot_1d(ax, data, *args, **kwargs):
     **kwargs : `~matplotlib.axes.Axes.hist` properties
 
     """
-    weights = kwargs.pop('weights', None)
-    bins = kwargs.pop('bins', 10)
-    histtype = kwargs.pop('histtype', 'bar')
-    density = kwargs.get('density', False)
+    weights = kwargs.pop("weights", None)
+    bins = kwargs.pop("bins", 10)
+    histtype = kwargs.pop("histtype", "bar")
+    density = kwargs.get("density", False)
 
-    cmap = kwargs.pop('cmap', None)
-    color = kwargs.pop('color', (next(ax._get_lines.prop_cycler)['color']
-                                 if cmap is None else cmap(0.68)))
+    cmap = kwargs.pop("cmap", None)
+    color = kwargs.pop(
+        "color",
+        (next(ax._get_lines.prop_cycler)["color"] if cmap is None else cmap(0.68)),
+    )
 
-    q = kwargs.pop('q', 5)
+    q = kwargs.pop("q", 5)
     q = quantile_plot_interval(q=q)
     xmin = quantile(data, q[0], weights)
     xmax = quantile(data, q[-1], weights)
 
-    if type(bins) == str and bins in ['knuth', 'freedman', 'blocks']:
+    if type(bins) == str and bins in ["knuth", "freedman", "blocks"]:
         try:
-            h, edges, bars = hist(data, ax=ax, bins=bins,
-                                  range=(xmin, xmax), histtype=histtype,
-                                  color=color, *args, **kwargs)
+            h, edges, bars = hist(
+                data,
+                ax=ax,
+                bins=bins,
+                range=(xmin, xmax),
+                histtype=histtype,
+                color=color,
+                *args,
+                **kwargs
+            )
         except NameError:
             raise ImportError("You need to install astropy to use astropyhist")
     else:
-        h, edges, bars = ax.hist(data, weights=weights, bins=bins,
-                                 range=(xmin, xmax), histtype=histtype,
-                                 color=color, *args, **kwargs)
+        h, edges, bars = ax.hist(
+            data,
+            weights=weights,
+            bins=bins,
+            range=(xmin, xmax),
+            histtype=histtype,
+            color=color,
+            *args,
+            **kwargs
+        )
 
-    if histtype == 'bar' and not density:
+    if histtype == "bar" and not density:
         for b in bars:
             b.set_height(b.get_height() / h.max())
-    elif (histtype == 'step' or histtype == 'stepfilled') and not density:
-        trans = Affine2D().scale(sx=1, sy=1./h.max()) + ax.transData
+    elif (histtype == "step" or histtype == "stepfilled") and not density:
+        trans = Affine2D().scale(sx=1, sy=1.0 / h.max()) + ax.transData
         bars[0].set_transform(trans)
 
     if not density:
@@ -937,65 +1064,99 @@ def fastkde_contour_plot_2d(ax, data_x, data_y, *args, **kwargs):
         A set of contourlines or filled regions.
 
     """
-    kwargs = normalize_kwargs(kwargs, dict(linewidths=['linewidth', 'lw'],
-                                           linestyles=['linestyle', 'ls'],
-                                           color=['c'],
-                                           facecolor=['fc'],
-                                           edgecolor=['ec']))
+    kwargs = normalize_kwargs(
+        kwargs,
+        dict(
+            linewidths=["linewidth", "lw"],
+            linestyles=["linestyle", "ls"],
+            color=["c"],
+            facecolor=["fc"],
+            edgecolor=["ec"],
+        ),
+    )
 
-    xmin = kwargs.pop('xmin', None)
-    xmax = kwargs.pop('xmax', None)
-    ymin = kwargs.pop('ymin', None)
-    ymax = kwargs.pop('ymax', None)
-    label = kwargs.pop('label', None)
-    zorder = kwargs.pop('zorder', 1)
-    levels = kwargs.pop('levels', [0.95, 0.68])
+    xmin = kwargs.pop("xmin", None)
+    xmax = kwargs.pop("xmax", None)
+    ymin = kwargs.pop("ymin", None)
+    ymax = kwargs.pop("ymax", None)
+    label = kwargs.pop("label", None)
+    zorder = kwargs.pop("zorder", 1)
+    levels = kwargs.pop("levels", [0.95, 0.68])
 
-    color = kwargs.pop('color', next(ax._get_lines.prop_cycler)['color'])
-    facecolor = kwargs.pop('facecolor', True)
-    edgecolor = kwargs.pop('edgecolor', None)
-    cmap = kwargs.pop('cmap', None)
-    facecolor, edgecolor, cmap = set_colors(c=color, fc=facecolor,
-                                            ec=edgecolor, cmap=cmap)
+    color = kwargs.pop("color", next(ax._get_lines.prop_cycler)["color"])
+    facecolor = kwargs.pop("facecolor", True)
+    edgecolor = kwargs.pop("edgecolor", None)
+    cmap = kwargs.pop("cmap", None)
+    facecolor, edgecolor, cmap = set_colors(
+        c=color, fc=facecolor, ec=edgecolor, cmap=cmap
+    )
 
-    kwargs.pop('q', None)
+    kwargs.pop("q", None)
 
     try:
-        x, y, pdf, xmin, xmax, ymin, ymax = fastkde_2d(data_x, data_y,
-                                                       xmin=xmin, xmax=xmax,
-                                                       ymin=ymin, ymax=ymax)
+        x, y, pdf, xmin, xmax, ymin, ymax = fastkde_2d(
+            data_x, data_y, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
+        )
     except NameError:
         raise ImportError("You need to install fastkde to use fastkde")
 
     levels = iso_probability_contours(pdf, contours=levels)
 
-    i = (pdf >= levels[0]*0.5).any(axis=0)
-    j = (pdf >= levels[0]*0.5).any(axis=1)
+    i = (pdf >= levels[0] * 0.5).any(axis=0)
+    j = (pdf >= levels[0] * 0.5).any(axis=1)
 
-    if facecolor not in [None, 'None', 'none']:
-        linewidths = kwargs.pop('linewidths', 0.5)
-        contf = ax.contourf(x[i], y[j], pdf[np.ix_(j, i)], levels, cmap=cmap,
-                            zorder=zorder, vmin=0, vmax=pdf.max(),
-                            *args, **kwargs)
+    if facecolor not in [None, "None", "none"]:
+        linewidths = kwargs.pop("linewidths", 0.5)
+        contf = ax.contourf(
+            x[i],
+            y[j],
+            pdf[np.ix_(j, i)],
+            levels,
+            cmap=cmap,
+            zorder=zorder,
+            vmin=0,
+            vmax=pdf.max(),
+            *args,
+            **kwargs
+        )
         for c in contf.collections:
             c.set_cmap(cmap)
-        ax.add_patch(plt.Rectangle((0, 0), 0, 0, lw=2, label=label,
-                                   fc=cmap(0.999), ec=cmap(0.32)))
+        ax.add_patch(
+            plt.Rectangle(
+                (0, 0), 0, 0, lw=2, label=label, fc=cmap(0.999), ec=cmap(0.32)
+            )
+        )
         cmap = None
     else:
-        linewidths = kwargs.pop('linewidths',
-                                plt.rcParams.get('lines.linewidth'))
+        linewidths = kwargs.pop("linewidths", plt.rcParams.get("lines.linewidth"))
         contf = None
         ax.add_patch(
-            plt.Rectangle((0, 0), 0, 0, lw=2, label=label,
-                          fc='None' if cmap is None else cmap(0.999),
-                          ec=edgecolor if cmap is None else cmap(0.32))
+            plt.Rectangle(
+                (0, 0),
+                0,
+                0,
+                lw=2,
+                label=label,
+                fc="None" if cmap is None else cmap(0.999),
+                ec=edgecolor if cmap is None else cmap(0.32),
+            )
         )
 
     vmin, vmax = match_contour_to_contourf(levels, vmin=0, vmax=pdf.max())
-    cont = ax.contour(x[i], y[j], pdf[np.ix_(j, i)], levels, zorder=zorder,
-                      vmin=vmin, vmax=vmax, linewidths=linewidths,
-                      colors=edgecolor, cmap=cmap, *args, **kwargs)
+    cont = ax.contour(
+        x[i],
+        y[j],
+        pdf[np.ix_(j, i)],
+        levels,
+        zorder=zorder,
+        vmin=vmin,
+        vmax=vmax,
+        linewidths=linewidths,
+        colors=edgecolor,
+        cmap=cmap,
+        *args,
+        **kwargs
+    )
 
     ax.set_xlim(xmin, xmax, auto=True)
     ax.set_ylim(ymin, ymax, auto=True)
@@ -1044,81 +1205,115 @@ def kde_contour_plot_2d(ax, data_x, data_y, *args, **kwargs):
         A set of contourlines or filled regions.
 
     """
-    kwargs = normalize_kwargs(kwargs, dict(linewidths=['linewidth', 'lw'],
-                                           linestyles=['linestyle', 'ls'],
-                                           color=['c'],
-                                           facecolor=['fc'],
-                                           edgecolor=['ec']))
+    kwargs = normalize_kwargs(
+        kwargs,
+        dict(
+            linewidths=["linewidth", "lw"],
+            linestyles=["linestyle", "ls"],
+            color=["c"],
+            facecolor=["fc"],
+            edgecolor=["ec"],
+        ),
+    )
 
-    weights = kwargs.pop('weights', None)
+    weights = kwargs.pop("weights", None)
     if weights is not None:
         data_x = data_x[weights != 0]
         data_y = data_y[weights != 0]
         weights = weights[weights != 0]
 
-    ncompress = kwargs.pop('ncompress', 1000)
-    nplot = kwargs.pop('nplot_2d', 1000)
-    bw_method = kwargs.pop('bw_method', None)
-    label = kwargs.pop('label', None)
-    zorder = kwargs.pop('zorder', 1)
-    levels = kwargs.pop('levels', [0.95, 0.68])
+    ncompress = kwargs.pop("ncompress", 1000)
+    nplot = kwargs.pop("nplot_2d", 1000)
+    bw_method = kwargs.pop("bw_method", None)
+    label = kwargs.pop("label", None)
+    zorder = kwargs.pop("zorder", 1)
+    levels = kwargs.pop("levels", [0.95, 0.68])
 
-    color = kwargs.pop('color', next(ax._get_lines.prop_cycler)['color'])
-    facecolor = kwargs.pop('facecolor', True)
-    edgecolor = kwargs.pop('edgecolor', None)
-    cmap = kwargs.pop('cmap', None)
-    facecolor, edgecolor, cmap = set_colors(c=color, fc=facecolor,
-                                            ec=edgecolor, cmap=cmap)
+    color = kwargs.pop("color", next(ax._get_lines.prop_cycler)["color"])
+    facecolor = kwargs.pop("facecolor", True)
+    edgecolor = kwargs.pop("edgecolor", None)
+    cmap = kwargs.pop("cmap", None)
+    facecolor, edgecolor, cmap = set_colors(
+        c=color, fc=facecolor, ec=edgecolor, cmap=cmap
+    )
 
-    kwargs.pop('q', None)
+    kwargs.pop("q", None)
 
-    q = kwargs.pop('q', 5)
+    q = kwargs.pop("q", 5)
     q = quantile_plot_interval(q=q)
     xmin = quantile(data_x, q[0], weights)
     xmax = quantile(data_x, q[-1], weights)
     ymin = quantile(data_y, q[0], weights)
     ymax = quantile(data_y, q[-1], weights)
-    X, Y = np.mgrid[xmin:xmax:1j*np.sqrt(nplot), ymin:ymax:1j*np.sqrt(nplot)]
+    X, Y = np.mgrid[
+        xmin : xmax : 1j * np.sqrt(nplot), ymin : ymax : 1j * np.sqrt(nplot)
+    ]
 
     cov = np.cov(data_x, data_y, aweights=weights)
-    tri, w = triangular_sample_compression_2d(data_x, data_y, cov,
-                                              weights, ncompress)
+    tri, w = triangular_sample_compression_2d(data_x, data_y, cov, weights, ncompress)
     kde = gaussian_kde([tri.x, tri.y], weights=w, bw_method=bw_method)
 
     P = kde([X.ravel(), Y.ravel()]).reshape(X.shape)
 
     bw_x = np.sqrt(kde.covariance[0, 0])
-    P = cut_and_normalise_gaussian(X, P, bw=bw_x,
-                                   xmin=data_x.min(), xmax=data_x.max())
+    P = cut_and_normalise_gaussian(X, P, bw=bw_x, xmin=data_x.min(), xmax=data_x.max())
     bw_y = np.sqrt(kde.covariance[1, 1])
-    P = cut_and_normalise_gaussian(Y, P, bw=bw_y,
-                                   xmin=data_y.min(), xmax=data_y.max())
+    P = cut_and_normalise_gaussian(Y, P, bw=bw_y, xmin=data_y.min(), xmax=data_y.max())
 
     levels = iso_probability_contours(P, contours=levels)
 
-    if facecolor not in [None, 'None', 'none']:
-        linewidths = kwargs.pop('linewidths', 0.5)
-        contf = ax.contourf(X, Y, P, levels=levels, cmap=cmap, zorder=zorder,
-                            vmin=0, vmax=P.max(), *args, **kwargs)
+    if facecolor not in [None, "None", "none"]:
+        linewidths = kwargs.pop("linewidths", 0.5)
+        contf = ax.contourf(
+            X,
+            Y,
+            P,
+            levels=levels,
+            cmap=cmap,
+            zorder=zorder,
+            vmin=0,
+            vmax=P.max(),
+            *args,
+            **kwargs
+        )
         for c in contf.collections:
             c.set_cmap(cmap)
-        ax.add_patch(plt.Rectangle((0, 0), 0, 0, lw=2, label=label,
-                                   fc=cmap(0.999), ec=cmap(0.32)))
+        ax.add_patch(
+            plt.Rectangle(
+                (0, 0), 0, 0, lw=2, label=label, fc=cmap(0.999), ec=cmap(0.32)
+            )
+        )
         cmap = None
     else:
-        linewidths = kwargs.pop('linewidths',
-                                plt.rcParams.get('lines.linewidth'))
+        linewidths = kwargs.pop("linewidths", plt.rcParams.get("lines.linewidth"))
         contf = None
         ax.add_patch(
-            plt.Rectangle((0, 0), 0, 0, lw=2, label=label,
-                          fc='None' if cmap is None else cmap(0.999),
-                          ec=edgecolor if cmap is None else cmap(0.32))
+            plt.Rectangle(
+                (0, 0),
+                0,
+                0,
+                lw=2,
+                label=label,
+                fc="None" if cmap is None else cmap(0.999),
+                ec=edgecolor if cmap is None else cmap(0.32),
+            )
         )
 
     vmin, vmax = match_contour_to_contourf(levels, vmin=0, vmax=P.max())
-    cont = ax.contour(X, Y, P, levels=levels, zorder=zorder,
-                      vmin=vmin, vmax=vmax, linewidths=linewidths,
-                      colors=edgecolor, cmap=cmap, *args, **kwargs)
+    cont = ax.contour(
+        X,
+        Y,
+        P,
+        levels=levels,
+        zorder=zorder,
+        vmin=vmin,
+        vmax=vmax,
+        linewidths=linewidths,
+        colors=edgecolor,
+        cmap=cmap,
+        *args,
+        **kwargs
+    )
 
     return contf, cont
 
@@ -1156,34 +1351,40 @@ def hist_plot_2d(ax, data_x, data_y, *args, **kwargs):
         A set of colors.
 
     """
-    weights = kwargs.pop('weights', None)
+    weights = kwargs.pop("weights", None)
 
-    vmin = kwargs.pop('vmin', 0)
-    label = kwargs.pop('label', None)
-    levels = kwargs.pop('levels', None)
+    vmin = kwargs.pop("vmin", 0)
+    label = kwargs.pop("label", None)
+    levels = kwargs.pop("levels", None)
 
-    color = kwargs.pop('color', next(ax._get_lines.prop_cycler)['color'])
-    cmap = kwargs.pop('cmap', basic_cmap(color))
+    color = kwargs.pop("color", next(ax._get_lines.prop_cycler)["color"])
+    cmap = kwargs.pop("cmap", basic_cmap(color))
 
-    q = kwargs.pop('q', 5)
+    q = kwargs.pop("q", 5)
     q = quantile_plot_interval(q=q)
     xmin = quantile(data_x, q[0], weights)
     xmax = quantile(data_x, q[-1], weights)
     ymin = quantile(data_y, q[0], weights)
     ymax = quantile(data_y, q[-1], weights)
-    rge = kwargs.pop('range', ((xmin, xmax), (ymin, ymax)))
+    rge = kwargs.pop("range", ((xmin, xmax), (ymin, ymax)))
 
     if levels is None:
-        pdf, x, y, image = ax.hist2d(data_x, data_y, weights=weights,
-                                     cmap=cmap, range=rge, vmin=vmin,
-                                     *args, **kwargs)
+        pdf, x, y, image = ax.hist2d(
+            data_x,
+            data_y,
+            weights=weights,
+            cmap=cmap,
+            range=rge,
+            vmin=vmin,
+            *args,
+            **kwargs
+        )
     else:
-        bins = kwargs.pop('bins', 10)
-        density = kwargs.pop('density', False)
-        cmin = kwargs.pop('cmin', None)
-        cmax = kwargs.pop('cmax', None)
-        pdf, x, y = np.histogram2d(data_x, data_y, bins, rge,
-                                   density, weights)
+        bins = kwargs.pop("bins", 10)
+        density = kwargs.pop("density", False)
+        cmin = kwargs.pop("cmin", None)
+        cmax = kwargs.pop("cmax", None)
+        pdf, x, y = np.histogram2d(data_x, data_y, bins, rge, density, weights)
         levels = iso_probability_contours(pdf, levels)
         pdf = np.digitize(pdf, levels, right=True)
         pdf = np.array(levels)[pdf]
@@ -1192,11 +1393,11 @@ def hist_plot_2d(ax, data_x, data_y, *args, **kwargs):
             pdf[pdf < cmin] = np.ma.masked
         if cmax is not None:
             pdf[pdf > cmax] = np.ma.masked
-        image = ax.pcolormesh(x, y, pdf.T, cmap=cmap, vmin=vmin,
-                              *args, **kwargs)
+        image = ax.pcolormesh(x, y, pdf.T, cmap=cmap, vmin=vmin, *args, **kwargs)
 
-    ax.add_patch(plt.Rectangle((0, 0), 0, 0, fc=cmap(0.999), ec=cmap(0.32),
-                               lw=2, label=label))
+    ax.add_patch(
+        plt.Rectangle((0, 0), 0, 0, fc=cmap(0.999), ec=cmap(0.32), lw=2, label=label)
+    )
 
     return image
 
@@ -1224,42 +1425,48 @@ def scatter_plot_2d(ax, data_x, data_y, *args, **kwargs):
     """
     kwargs = normalize_kwargs(
         kwargs,
-        dict(color=['c'], mfc=['facecolor', 'fc'], mec=['edgecolor', 'ec']),
-        drop=['ls', 'lw'])
+        dict(color=["c"], mfc=["facecolor", "fc"], mec=["edgecolor", "ec"]),
+        drop=["ls", "lw"],
+    )
     kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D)
 
-    markersize = kwargs.pop('markersize', 1)
-    cmap = kwargs.pop('cmap', None)
-    color = kwargs.pop('color', (next(ax._get_lines.prop_cycler)['color']
-                                 if cmap is None else cmap(0.68)))
+    markersize = kwargs.pop("markersize", 1)
+    cmap = kwargs.pop("cmap", None)
+    color = kwargs.pop(
+        "color",
+        (next(ax._get_lines.prop_cycler)["color"] if cmap is None else cmap(0.68)),
+    )
 
-    kwargs.pop('q', None)
+    kwargs.pop("q", None)
 
-    points = ax.plot(data_x, data_y, 'o', color=color, markersize=markersize,
-                     *args, **kwargs)
+    points = ax.plot(
+        data_x, data_y, "o", color=color, markersize=markersize, *args, **kwargs
+    )
     return points
 
 
 def basic_cmap(color):
     """Construct basic colormap a single color."""
-    return LinearSegmentedColormap.from_list(color, ['#ffffff', color])
+    return LinearSegmentedColormap.from_list(color, ["#ffffff", color])
 
 
 def quantile_plot_interval(q):
     """Interpret quantile q input to quantile plot range tuple."""
     if isinstance(q, str):
-        sigmas = {'1sigma': 0.682689492137086,
-                  '2sigma': 0.954499736103642,
-                  '3sigma': 0.997300203936740,
-                  '4sigma': 0.999936657516334,
-                  '5sigma': 0.999999426696856}
+        sigmas = {
+            "1sigma": 0.682689492137086,
+            "2sigma": 0.954499736103642,
+            "3sigma": 0.997300203936740,
+            "4sigma": 0.999936657516334,
+            "5sigma": 0.999999426696856,
+        }
         q = (1 - sigmas[q]) / 2
     elif isinstance(q, int) and q >= 1:
         q = (1 - erf(q / np.sqrt(2))) / 2
     if isinstance(q, float) or isinstance(q, int):
         if q > 0.5:
             q = 1 - q
-        q = (q, 1-q)
+        q = (q, 1 - q)
     return tuple(np.sort(q))
 
 
@@ -1279,7 +1486,7 @@ def normalize_kwargs(kwargs, alias_mapping=None, drop=None):
 
 def set_colors(c, fc, ec, cmap):
     """Navigate interplay between possible color inputs {c, fc, ec, cmap}."""
-    if fc in [None, 'None', 'none']:
+    if fc in [None, "None", "none"]:
         # unfilled contours
         if ec is None and cmap is None:
             cmap = basic_cmap(c)
@@ -1291,7 +1498,7 @@ def set_colors(c, fc, ec, cmap):
             ec = c
             cmap = basic_cmap(fc)
         elif ec is None:
-            ec = (cmap(1.),)
+            ec = (cmap(1.0),)
         elif cmap is None:
             cmap = basic_cmap(fc)
     return fc, ec, cmap

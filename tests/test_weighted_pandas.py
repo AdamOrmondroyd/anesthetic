@@ -7,9 +7,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_allclose
 import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix, bootstrap_plot
-from pandas.plotting._matplotlib.misc import (
-    scatter_matrix as orig_scatter_matrix
-)
+from pandas.plotting._matplotlib.misc import scatter_matrix as orig_scatter_matrix
 
 
 @pytest.fixture
@@ -40,7 +38,7 @@ def series():
     assert_array_equal(series.get_weights(), weights)
     assert isinstance(series.to_frame(), WeightedDataFrame)
     assert_array_equal(series.to_frame().get_weights(), weights)
-    assert_array_equal(series.index.get_level_values('weights'), weights)
+    assert_array_equal(series.index.get_level_values("weights"), weights)
 
     return series
 
@@ -49,7 +47,7 @@ def series():
 def frame():
     np.random.seed(0)
     N = 100000
-    cols = ['A', 'B', 'C', 'D', 'E', 'F']
+    cols = ["A", "B", "C", "D", "E", "F"]
     m = len(cols)
     data = np.random.rand(N, m)
 
@@ -72,7 +70,7 @@ def frame():
     assert_array_equal(frame, data)
     assert_array_equal(frame.get_weights(), weights)
     assert_array_equal(frame.columns, cols)
-    assert_array_equal(frame.index.get_level_values('weights'), weights)
+    assert_array_equal(frame.index.get_level_values("weights"), weights)
     return frame
 
 
@@ -80,12 +78,11 @@ def test_WeightedDataFrame_key(frame):
     for key1 in frame.columns:
         assert_array_equal(frame.get_weights(), frame[key1].get_weights())
         for key2 in frame.columns:
-            assert_array_equal(frame[key1].get_weights(),
-                               frame[key2].get_weights())
+            assert_array_equal(frame[key1].get_weights(), frame[key2].get_weights())
 
 
 def test_WeightedDataFrame_slice(frame):
-    assert isinstance(frame['A'], WeightedSeries)
+    assert isinstance(frame["A"], WeightedSeries)
     assert isinstance(frame.iloc[0], WeightedSeries)
     assert not frame.iloc[0].isweighted()
     assert isinstance(frame[:10], WeightedDataFrame)
@@ -118,7 +115,7 @@ def test_WeightedDataFrame_std(frame):
     assert isinstance(std, WeightedSeries)
     assert not std.isweighted()
     assert_array_equal(std.index, frame.columns)
-    assert_allclose(std, (1./12)**0.5, atol=1e-2)
+    assert_allclose(std, (1.0 / 12) ** 0.5, atol=1e-2)
 
     std = frame.std(axis=1)
     assert isinstance(std, WeightedSeries)
@@ -127,7 +124,7 @@ def test_WeightedDataFrame_std(frame):
     assert std.isweighted()
     assert frame.T.std().isweighted()
     assert_array_equal(std.index, frame.index)
-    assert_allclose(std.mean(), (1./12)**0.5, atol=1e-1)
+    assert_allclose(std.mean(), (1.0 / 12) ** 0.5, atol=1e-1)
 
 
 def test_WeightedDataFrame_cov(frame):
@@ -136,7 +133,7 @@ def test_WeightedDataFrame_cov(frame):
     assert not cov.isweighted(0) and not cov.isweighted(1)
     assert_array_equal(cov.index, frame.columns)
     assert_array_equal(cov.columns, frame.columns)
-    assert_allclose(cov, (1./12)*np.identity(6), atol=1e-2)
+    assert_allclose(cov, (1.0 / 12) * np.identity(6), atol=1e-2)
 
     cov = frame[:5].T.cov()
     assert isinstance(cov, WeightedDataFrame)
@@ -165,26 +162,26 @@ def test_WeightedDataFrame_corrwith(frame):
     assert isinstance(correl, WeightedSeries)
     assert not correl.isweighted()
     assert_array_equal(correl.index, frame.columns)
-    assert_allclose(correl, frame.corr()['A'])
+    assert_allclose(correl, frame.corr()["A"])
 
-    correl = frame.corrwith(frame[['A', 'B']])
+    correl = frame.corrwith(frame[["A", "B"]])
     assert isinstance(correl, WeightedSeries)
     assert not correl.isweighted()
     assert_array_equal(correl.index, frame.columns)
-    assert_allclose(correl['A'], 1, atol=1e-2)
-    assert_allclose(correl['B'], 1, atol=1e-2)
-    assert np.isnan(correl['C'])
+    assert_allclose(correl["A"], 1, atol=1e-2)
+    assert_allclose(correl["B"], 1, atol=1e-2)
+    assert np.isnan(correl["C"])
 
-    unweighted = DataFrame(frame).droplevel('weights')
+    unweighted = DataFrame(frame).droplevel("weights")
 
     with pytest.raises(ValueError):
         frame.corrwith(unweighted.A)
 
     with pytest.raises(ValueError):
-        frame.corrwith(unweighted[['A', 'B']])
+        frame.corrwith(unweighted[["A", "B"]])
 
     with pytest.raises(ValueError):
-        unweighted.corrwith(frame[['A', 'B']])
+        unweighted.corrwith(frame[["A", "B"]])
 
     correl_1 = unweighted[:5].corrwith(unweighted[:4], axis=1)
     correl_2 = frame[:5].corrwith(frame[:4], axis=1)
@@ -225,7 +222,7 @@ def test_WeightedDataFrame_sem(frame):
     assert isinstance(sem, WeightedSeries)
     assert not sem.isweighted()
     assert_array_equal(sem.index, frame.columns)
-    assert_allclose(sem, (1./12)**0.5/np.sqrt(frame.neff()), atol=1e-2)
+    assert_allclose(sem, (1.0 / 12) ** 0.5 / np.sqrt(frame.neff()), atol=1e-2)
 
     sem = frame.sem(axis=1)
     assert isinstance(sem, WeightedSeries)
@@ -241,7 +238,7 @@ def test_WeightedDataFrame_kurtosis(frame):
     assert isinstance(kurtosis, WeightedSeries)
     assert not kurtosis.isweighted()
     assert_array_equal(kurtosis.index, frame.columns)
-    assert_allclose(kurtosis, 9./5, atol=1e-2)
+    assert_allclose(kurtosis, 9.0 / 5, atol=1e-2)
     assert_array_equal(frame.kurtosis(), frame.kurt())
 
     kurtosis = frame.kurtosis(axis=1)
@@ -259,7 +256,7 @@ def test_WeightedDataFrame_skew(frame):
     assert isinstance(skew, WeightedSeries)
     assert not skew.isweighted()
     assert_array_equal(skew.index, frame.columns)
-    assert_allclose(skew, 0., atol=2e-2)
+    assert_allclose(skew, 0.0, atol=2e-2)
 
     skew = frame.skew(axis=1)
     assert isinstance(skew, WeightedSeries)
@@ -320,7 +317,7 @@ def test_WeightedDataFrame_quantile(frame):
         assert_array_equal(quantile.index, frame.index)
 
     quantile = frame.quantile(qs)
-    assert_allclose(quantile, np.transpose([qs]*6), atol=1e-2)
+    assert_allclose(quantile, np.transpose([qs] * 6), atol=1e-2)
     assert_array_equal(quantile.index, qs)
     assert_array_equal(quantile.columns, frame.columns)
     quantile = frame.quantile(qs, axis=1)
@@ -331,7 +328,7 @@ def test_WeightedDataFrame_quantile(frame):
     with pytest.raises(NotImplementedError):
         frame.quantile(numeric_only=False)
     with pytest.raises(NotImplementedError):
-        frame.quantile(method='single')
+        frame.quantile(method="single")
 
 
 def test_WeightedDataFrame_sample(frame):
@@ -393,18 +390,22 @@ def test_WeightedDataFrame_compress(frame):
 
 
 def test_WeightedDataFrame_nan(frame):
-    frame['A'][0] = np.nan
+    frame["A"][0] = np.nan
     assert ~frame.mean().isna().any()
     assert ~frame.mean(axis=1).isna().any()
-    assert_array_equal(frame.mean(skipna=False).isna(), [True] + [False]*5)
-    assert_array_equal(frame.mean(axis=1, skipna=False).isna()[0:6],
-                       [True, False, False, False, False, False])
+    assert_array_equal(frame.mean(skipna=False).isna(), [True] + [False] * 5)
+    assert_array_equal(
+        frame.mean(axis=1, skipna=False).isna()[0:6],
+        [True, False, False, False, False, False],
+    )
 
     assert ~frame.std().isna().any()
     assert ~frame.std(axis=1).isna().any()
-    assert_array_equal(frame.std(skipna=False).isna(), [True] + [False]*5)
-    assert_array_equal(frame.std(axis=1, skipna=False).isna()[0:6],
-                       [True, False, False, False, False, False])
+    assert_array_equal(frame.std(skipna=False).isna(), [True] + [False] * 5)
+    assert_array_equal(
+        frame.std(axis=1, skipna=False).isna()[0:6],
+        [True, False, False, False, False, False],
+    )
 
     assert ~frame.cov().isna().any().any()
     ans = np.zeros((6, 6), dtype=bool)
@@ -412,44 +413,50 @@ def test_WeightedDataFrame_nan(frame):
     ans[:, 0] = True
     assert_array_equal(frame.cov(skipna=False).isna(), ans)
 
-    frame['B'][2] = np.nan
+    frame["B"][2] = np.nan
     assert ~frame.mean().isna().any()
-    assert_array_equal(frame.mean(skipna=False).isna(),
-                       [True, True] + [False]*4)
-    assert_array_equal(frame.mean(axis=1, skipna=False).isna()[0:6],
-                       [True, False, True, False, False, False])
+    assert_array_equal(frame.mean(skipna=False).isna(), [True, True] + [False] * 4)
+    assert_array_equal(
+        frame.mean(axis=1, skipna=False).isna()[0:6],
+        [True, False, True, False, False, False],
+    )
 
     assert ~frame.std().isna().any()
-    assert_array_equal(frame.std(skipna=False).isna(),
-                       [True, True] + [False]*4)
-    assert_array_equal(frame.std(axis=1, skipna=False).isna()[0:6],
-                       [True, False, True, False, False, False])
+    assert_array_equal(frame.std(skipna=False).isna(), [True, True] + [False] * 4)
+    assert_array_equal(
+        frame.std(axis=1, skipna=False).isna()[0:6],
+        [True, False, True, False, False, False],
+    )
 
     assert ~frame.cov().isna().any().any()
     ans[1] = True
     ans[:, 1] = True
     assert_array_equal(frame.cov(skipna=False).isna(), ans)
 
-    frame['C'][4] = np.nan
-    frame['D'][5] = np.nan
-    frame['E'][6] = np.nan
-    frame['F'][7] = np.nan
+    frame["C"][4] = np.nan
+    frame["D"][5] = np.nan
+    frame["E"][6] = np.nan
+    frame["F"][7] = np.nan
     assert ~frame.mean().isna().any()
     assert frame.mean(skipna=False).isna().all()
-    assert_array_equal(frame.mean(axis=1, skipna=False).isna()[0:6],
-                       [True, False, True, False, True, True])
+    assert_array_equal(
+        frame.mean(axis=1, skipna=False).isna()[0:6],
+        [True, False, True, False, True, True],
+    )
 
     assert ~frame.std().isna().any()
     assert frame.std(skipna=False).isna().all()
-    assert_array_equal(frame.std(axis=1, skipna=False).isna()[0:6],
-                       [True, False, True, False, True, True])
+    assert_array_equal(
+        frame.std(axis=1, skipna=False).isna()[0:6],
+        [True, False, True, False, True, True],
+    )
 
     assert ~frame.cov().isna().any().any()
     assert frame.cov(skipna=False).isna().all().all()
 
     assert_allclose(frame.mean(), 0.5, atol=1e-2)
-    assert_allclose(frame.std(), (1./12)**0.5, atol=1e-2)
-    assert_allclose(frame.cov(), (1./12)*np.identity(6), atol=1e-2)
+    assert_allclose(frame.std(), (1.0 / 12) ** 0.5, atol=1e-2)
+    assert_allclose(frame.cov(), (1.0 / 12) * np.identity(6), atol=1e-2)
 
     assert isinstance(frame.mean(), WeightedSeries)
     assert not frame.mean().isweighted()
@@ -468,7 +475,7 @@ def test_WeightedSeries_mean(series):
 def test_WeightedSeries_std(series):
     std = series.std()
     assert isinstance(std, float)
-    assert_allclose(std, (1./12)**0.5, atol=1e-2)
+    assert_allclose(std, (1.0 / 12) ** 0.5, atol=1e-2)
 
     series[0] = np.nan
     assert ~np.isnan(series.std())
@@ -476,10 +483,10 @@ def test_WeightedSeries_std(series):
 
 
 def test_WeightedSeries_cov(frame):
-    assert_allclose(frame.A.cov(frame.A), 1./12, atol=1e-2)
+    assert_allclose(frame.A.cov(frame.A), 1.0 / 12, atol=1e-2)
     assert_allclose(frame.A.cov(frame.B), 0, atol=1e-2)
 
-    frame.loc[0, 'B'] = np.nan
+    frame.loc[0, "B"] = np.nan
     assert ~np.isnan(frame.A.cov(frame.B))
     assert np.isnan(frame.A.cov(frame.B, skipna=False))
     assert ~np.isnan(frame.B.cov(frame.A))
@@ -487,12 +494,12 @@ def test_WeightedSeries_cov(frame):
 
 
 def test_WeightedSeries_corr(frame):
-    assert_allclose(frame.A.corr(frame.A), 1., atol=1e-2)
+    assert_allclose(frame.A.corr(frame.A), 1.0, atol=1e-2)
     assert_allclose(frame.A.corr(frame.B), 0, atol=1e-2)
     D = frame.A + frame.B
-    assert_allclose(frame.A.corr(D), 1/np.sqrt(2), atol=1e-2)
+    assert_allclose(frame.A.corr(D), 1 / np.sqrt(2), atol=1e-2)
 
-    unweighted = DataFrame(frame).droplevel('weights')
+    unweighted = DataFrame(frame).droplevel("weights")
 
     with pytest.raises(ValueError):
         frame.A.corr(unweighted.B)
@@ -510,13 +517,13 @@ def test_WeightedSeries_median(series):
 def test_WeightedSeries_sem(series):
     sem = series.sem()
     assert isinstance(sem, float)
-    assert_allclose(sem, (1./12)**0.5/np.sqrt(series.neff()), atol=1e-2)
+    assert_allclose(sem, (1.0 / 12) ** 0.5 / np.sqrt(series.neff()), atol=1e-2)
 
 
 def test_WeightedSeries_kurtosis(series):
     kurtosis = series.kurtosis()
     assert isinstance(kurtosis, float)
-    assert_allclose(kurtosis, 9./5, atol=1e-2)
+    assert_allclose(kurtosis, 9.0 / 5, atol=1e-2)
     assert series.kurtosis() == series.kurt()
 
     series[0] = np.nan
@@ -527,7 +534,7 @@ def test_WeightedSeries_kurtosis(series):
 def test_WeightedSeries_skew(series):
     skew = series.skew()
     assert isinstance(skew, float)
-    assert_allclose(skew, 0., atol=1e-2)
+    assert_allclose(skew, 0.0, atol=1e-2)
 
     series[0] = np.nan
     assert ~np.isnan(series.skew())
@@ -594,8 +601,8 @@ def test_WeightedSeries_nan(series):
     assert np.isnan(series.var(skipna=False))
 
     assert_allclose(series.mean(), 0.5, atol=1e-2)
-    assert_allclose(series.var(), 1./12, atol=1e-2)
-    assert_allclose(series.std(), (1./12)**0.5, atol=1e-2)
+    assert_allclose(series.var(), 1.0 / 12, atol=1e-2)
+    assert_allclose(series.std(), (1.0 / 12) ** 0.5, atol=1e-2)
 
 
 @pytest.fixture
@@ -604,14 +611,14 @@ def mcmc_df():
     m, s = 0.5, 0.1
 
     def logL(x):
-        return x, -((x-m)**2).sum(axis=-1)/2/s**2
+        return x, -((x - m) ** 2).sum(axis=-1) / 2 / s**2
 
     np.random.seed(0)
     x0, logL0 = logL(np.random.normal(m, s, 4))
     dat = []
     for _ in range(3000):
         dat.append(x0)
-        x1, logL1 = logL(np.random.normal(x0, s/2))
+        x1, logL1 = logL(np.random.normal(x0, s / 2))
         if np.log(np.random.rand()) < logL1 - logL0:
             x0, logL0 = x1, logL1
 
@@ -698,7 +705,7 @@ def test_KdePlot(mcmc_df, mcmc_wdf):
     mcmc_wdf.x.plot.kde(bw_method=bw_method, ax=axes[1])
     df_line, wdf_line = axes[0].lines[0], axes[1].lines[0]
     assert (df_line.get_xdata() == wdf_line.get_xdata()).all()
-    assert_allclose(df_line.get_ydata(),  wdf_line.get_ydata(), atol=1e-4)
+    assert_allclose(df_line.get_ydata(), wdf_line.get_ydata(), atol=1e-4)
 
 
 def test_scatter_matrix(mcmc_df, mcmc_wdf):
@@ -749,27 +756,27 @@ def test_BoxPlot(mcmc_df, mcmc_wdf):
     mcmc_df.plot.box(subplots=True)
     mcmc_wdf.plot.box(subplots=True)
 
-    mcmc_df['split'] = ''
-    mcmc_df.loc[:len(mcmc_df)//2, 'split'] = 'A'
-    mcmc_df.loc[len(mcmc_df)//2:, 'split'] = 'B'
+    mcmc_df["split"] = ""
+    mcmc_df.loc[: len(mcmc_df) // 2, "split"] = "A"
+    mcmc_df.loc[len(mcmc_df) // 2 :, "split"] = "B"
 
-    mcmc_wdf['split'] = ''
-    mcmc_wdf.iloc[:len(mcmc_wdf)//2, -1] = 'A'
-    mcmc_wdf.iloc[len(mcmc_wdf)//2:, -1] = 'B'
+    mcmc_wdf["split"] = ""
+    mcmc_wdf.iloc[: len(mcmc_wdf) // 2, -1] = "A"
+    mcmc_wdf.iloc[len(mcmc_wdf) // 2 :, -1] = "B"
 
-    mcmc_df.groupby('split').boxplot()
-    mcmc_wdf.groupby('split').boxplot()
+    mcmc_df.groupby("split").boxplot()
+    mcmc_wdf.groupby("split").boxplot()
 
-    for return_type in ['dict', 'both']:
+    for return_type in ["dict", "both"]:
         fig, ax = plt.subplots()
         mcmc_wdf.plot.box(return_type=return_type, ax=ax)
         fig, ax = plt.subplots()
         mcmc_wdf.boxplot(return_type=return_type, ax=ax)
 
     fig, ax = plt.subplots()
-    mcmc_wdf.boxplot(xlabel='xlabel', ax=ax)
+    mcmc_wdf.boxplot(xlabel="xlabel", ax=ax)
     fig, ax = plt.subplots()
-    mcmc_wdf.boxplot(ylabel='ylabel', ax=ax)
+    mcmc_wdf.boxplot(ylabel="ylabel", ax=ax)
 
     fig, ax = plt.subplots()
     mcmc_wdf.boxplot(vert=False, ax=ax)
@@ -779,21 +786,21 @@ def test_BoxPlot(mcmc_df, mcmc_wdf):
 
 
 def test_ScatterPlot(mcmc_df, mcmc_wdf):
-    mcmc_df.plot.scatter('x', 'y')
-    ax = mcmc_wdf.plot.scatter('x', 'y')
+    mcmc_df.plot.scatter("x", "y")
+    ax = mcmc_wdf.plot.scatter("x", "y")
 
     n = len(ax.collections[0].get_offsets().data)
     neff = channel_capacity(mcmc_wdf.get_weights())
     assert_allclose(n, neff, atol=np.sqrt(n))
 
-    ax = mcmc_wdf.plot.scatter('x', 'y', ncompress=50)
+    ax = mcmc_wdf.plot.scatter("x", "y", ncompress=50)
     n = len(ax.collections[0].get_offsets().data)
     assert_allclose(n, 50, atol=np.sqrt(50))
 
 
 def test_HexBinPlot(mcmc_df, mcmc_wdf):
-    df_axes = mcmc_df.plot.hexbin('x', 'y', mincnt=1)
-    wdf_axes = mcmc_wdf.plot.hexbin('x', 'y')
+    df_axes = mcmc_df.plot.hexbin("x", "y", mincnt=1)
+    wdf_axes = mcmc_wdf.plot.hexbin("x", "y")
 
     df_data = df_axes.collections[0].get_offsets()
     wdf_data = wdf_axes.collections[0].get_offsets()
@@ -832,8 +839,9 @@ def test_LinePlot(mcmc_df, mcmc_wdf):
     assert_array_equal(mcmc_df.index, df_axes.lines[0].get_xdata())
     fig, ax = plt.subplots()
     wdf_axes = mcmc_wdf.x.plot.line(ax=ax)
-    assert_array_equal(mcmc_wdf.index.droplevel('weights'),
-                       wdf_axes.lines[0].get_xdata())
+    assert_array_equal(
+        mcmc_wdf.index.droplevel("weights"), wdf_axes.lines[0].get_xdata()
+    )
     wdf_axes = mcmc_wdf.plot.line()
     assert len(wdf_axes.lines) == len(mcmc_wdf.columns)
 
@@ -843,14 +851,14 @@ def test_multiindex(mcmc_wdf):
     i1 = np.arange(len(mcmc_wdf.index))
     i2 = np.random.randint(0, len(mcmc_wdf.index), len(mcmc_wdf.index))
     i3 = np.random.randint(0, len(mcmc_wdf.index), len(mcmc_wdf.index))
-    index = MultiIndex.from_arrays([i1, i2, i3], names=['A', 'B', 'C'])
+    index = MultiIndex.from_arrays([i1, i2, i3], names=["A", "B", "C"])
     weights = mcmc_wdf.get_weights()
     wdf = WeightedDataFrame(mcmc_wdf.values, weights=weights, index=index)
 
-    assert wdf.index.names == ['A', 'B', 'C', 'weights']
+    assert wdf.index.names == ["A", "B", "C", "weights"]
     assert_allclose(np.array([*wdf.index]).T, [i1, i2, i3, weights])
 
-    assert wdf.reset_index().index.names == [None, 'weights']
+    assert wdf.reset_index().index.names == [None, "weights"]
 
     assert not np.array_equal(wdf.reset_index().columns, wdf.columns)
     assert_array_equal(wdf.reset_index(drop=True).columns, wdf.columns)
@@ -860,23 +868,23 @@ def test_multiindex(mcmc_wdf):
     new.reset_index(inplace=True)
     assert_array_equal(new.index, wdf.reset_index().index)
 
-    wdf_ = wdf.reset_index(level='A')
-    assert wdf_.index.names == ['B', 'C', 'weights']
-    wdf_ = wdf.reset_index(level=['A', 'C'])
-    assert wdf_.index.names == ['B', 'weights']
+    wdf_ = wdf.reset_index(level="A")
+    assert wdf_.index.names == ["B", "C", "weights"]
+    wdf_ = wdf.reset_index(level=["A", "C"])
+    assert wdf_.index.names == ["B", "weights"]
 
     assert_array_equal(wdf.get_weights(), weights)
-    wdf_ = wdf.reorder_levels(['B', 'C', 'weights', 'A'])
+    wdf_ = wdf.reorder_levels(["B", "C", "weights", "A"])
     assert_array_equal(wdf_.get_weights(), weights)
     weights_ = np.random.rand(len(weights))
     assert_array_equal(wdf_.set_weights(weights_).get_weights(), weights_)
 
-    wdf_ = wdf.droplevel('weights').set_weights(weights, level=2)
-    assert wdf_.index.names == ['A', 'B', 'weights', 'C']
+    wdf_ = wdf.droplevel("weights").set_weights(weights, level=2)
+    assert wdf_.index.names == ["A", "B", "weights", "C"]
     assert_array_equal(wdf_.get_weights(), weights)
 
     wdf_ = wdf.set_weights(weights, level=2)
-    assert wdf_.index.names == ['A', 'B', 'weights', 'C']
+    assert wdf_.index.names == ["A", "B", "weights", "C"]
     assert_array_equal(wdf_.get_weights(), weights)
 
 
@@ -896,8 +904,7 @@ def test_set_weights(mcmc_wdf):
     weights_1 = mcmc_wdf.get_weights()
     weights_2 = np.random.rand(len(mcmc_wdf.index))
 
-    assert_array_equal(mcmc_wdf.set_weights(weights_2).get_weights(),
-                       weights_2)
+    assert_array_equal(mcmc_wdf.set_weights(weights_2).get_weights(), weights_2)
     assert_array_equal(mcmc_wdf.get_weights(), weights_1)
     mcmc_wdf.set_weights(weights_2, inplace=True)
     assert_array_equal(mcmc_wdf.get_weights(), weights_2)

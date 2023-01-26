@@ -35,9 +35,8 @@ def fastkde_1d(d, xmin=None, xmax=None):
     d_ = mirror_1d(d, xmin, xmax)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        p, x = fastKDE.pdf(d_, axisExpansionFactor=f,
-                           numPointsPerSigma=10*(2-f))
-    p *= 2-f
+        p, x = fastKDE.pdf(d_, axisExpansionFactor=f, numPointsPerSigma=10 * (2 - f))
+    p *= 2 - f
 
     if xmin is not None:
         p = p[x >= xmin]
@@ -73,17 +72,20 @@ def fastkde_2d(d_x, d_y, xmin=None, xmax=None, ymin=None, ymax=None):
         kernel density estimates. Two-dimensional array
 
     """
-    f = [xmax is None or xmin is None,
-         ymax is None or ymin is None]
+    f = [xmax is None or xmin is None, ymax is None or ymin is None]
     d_x_, d_y_ = mirror_2d(d_x, d_y, xmin, xmax, ymin, ymax)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        p, (x, y) = fastKDE.pdf(d_x_, d_y_, axisExpansionFactor=f,
-                                numPointsPerSigma=10*(2-f[0])*(2-f[1]))
+        p, (x, y) = fastKDE.pdf(
+            d_x_,
+            d_y_,
+            axisExpansionFactor=f,
+            numPointsPerSigma=10 * (2 - f[0]) * (2 - f[1]),
+        )
 
-    p *= (2-f[0])
-    p *= (2-f[1])
+    p *= 2 - f[0]
+    p *= 2 - f[1]
     if xmin is not None:
         p = p[:, x >= xmin]
         x = x[x >= xmin]

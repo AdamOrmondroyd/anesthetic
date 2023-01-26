@@ -1,7 +1,6 @@
 from typing import Literal
 import numpy as np
-from pandas.plotting._matplotlib.hist import (HistPlot as _HistPlot,
-                                              KdePlot as _KdePlot)
+from pandas.plotting._matplotlib.hist import HistPlot as _HistPlot, KdePlot as _KdePlot
 import pandas.plotting._matplotlib.hist
 from pandas.core.dtypes.missing import (
     isna,
@@ -9,7 +8,9 @@ from pandas.core.dtypes.missing import (
 )
 from pandas.plotting._matplotlib.core import MPLPlot, PlanePlot
 from anesthetic.plotting._matplotlib.core import (
-    _WeightedMPLPlot, _CompressedMPLPlot, _get_weights
+    _WeightedMPLPlot,
+    _CompressedMPLPlot,
+    _get_weights,
 )
 from anesthetic.plot import (
     kde_contour_plot_2d,
@@ -17,7 +18,7 @@ from anesthetic.plot import (
     fastkde_contour_plot_2d,
     kde_plot_1d,
     fastkde_plot_1d,
-    hist_plot_1d
+    hist_plot_1d,
 )
 
 
@@ -39,8 +40,7 @@ class HistPlot(_WeightedMPLPlot, _HistPlot):
         values = values[~isna(values)]
 
         hist, bins = np.histogram(
-            values, bins=self.bins, range=self.kwds.get("range", None),
-            weights=weights
+            values, bins=self.bins, range=self.kwds.get("range", None), weights=weights
         )
         return bins
 
@@ -60,6 +60,7 @@ class KdePlot(HistPlot, _KdePlot):
         **kwds,
     ):
         from scipy.stats import gaussian_kde
+
         weights = kwds.pop("weights", None)
 
         y = remove_na_arraylike(y)
@@ -78,10 +79,8 @@ class Kde1dPlot(_WeightedMPLPlot):
 
     def _make_plot(self):
         return kde_plot_1d(
-            self.axes[0],
-            self.data.values[:, 0],
-            label=self.label,
-            **self.kwds)
+            self.axes[0], self.data.values[:, 0], label=self.label, **self.kwds
+        )
 
 
 class FastKde1dPlot(_CompressedMPLPlot):
@@ -92,10 +91,8 @@ class FastKde1dPlot(_CompressedMPLPlot):
 
     def _make_plot(self):
         return fastkde_plot_1d(
-            self.axes[0],
-            self.data.values[:, 0],
-            label=self.label,
-            **self.kwds)
+            self.axes[0], self.data.values[:, 0], label=self.label, **self.kwds
+        )
 
 
 class Hist1dPlot(_WeightedMPLPlot):
@@ -106,10 +103,8 @@ class Hist1dPlot(_WeightedMPLPlot):
 
     def _make_plot(self):
         return hist_plot_1d(
-            self.axes[0],
-            self.data.values[:, 0],
-            label=self.label,
-            **self.kwds)
+            self.axes[0], self.data.values[:, 0], label=self.label, **self.kwds
+        )
 
 
 class Kde2dPlot(_WeightedMPLPlot, PlanePlot):
@@ -124,7 +119,8 @@ class Kde2dPlot(_WeightedMPLPlot, PlanePlot):
             self.data[self.x].values,
             self.data[self.y].values,
             label=self.label,
-            **self.kwds)
+            **self.kwds,
+        )
 
 
 class FastKde2dPlot(_CompressedMPLPlot, PlanePlot):
@@ -139,7 +135,8 @@ class FastKde2dPlot(_CompressedMPLPlot, PlanePlot):
             self.data[self.x].values,
             self.data[self.y].values,
             label=self.label,
-            **self.kwds)
+            **self.kwds,
+        )
 
 
 class Hist2dPlot(_WeightedMPLPlot, PlanePlot):
