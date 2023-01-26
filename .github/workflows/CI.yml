@@ -22,7 +22,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install "black[jupyter]" pydocstyle
-    - name: flake8 PEP compliance checks
+    - name: black compliance checks
       run: python -m black anesthetic tests --check
     - name: pydocstyle documentation style checks
       run: python -m pydocstyle --convention=numpy anesthetic
