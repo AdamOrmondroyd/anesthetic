@@ -1161,3 +1161,112 @@ def merge_samples_weighted(samples, weights=None, label=None):
     new_samples.label = label
 
     return new_samples
+
+
+class ClusteredSamples(NestedSamples):
+
+    _metadata = NestedSamples._metadata + ['cluster_tree']
+
+    def __init__(self, *args, **kwargs):
+        self.cluster_tree = kwargs.pop('cluster_tree')
+        super().__init__(*args, **kwargs)
+
+    def _parents(self, cluster):
+        """
+        List of parent clusters of cluster, including cluster.
+
+        0 is the original cluster.
+        """
+
+        parents = [cluster]
+        while cluster != 0:
+            cluster = int(self.cluster_tree[cluster])
+            parents = [cluster] + parents
+        return parents
+
+    def _in_same_cluster(self, i, j):
+        return i in self._parents(j) or j in self._parents(i)
+
+    def cluster(self, i):
+        """Return NestedSamples for just a particular cluster."""
+        if i in self.cluster_tree.values():
+            raise ValueError(f"Cluster {i} is not a leaf.")
+        _cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
+        return NestedSamples(_cs)
+
+    def clusters(self):
+        """Return list of NestedSamples for each cluster."""
+        return [self.cluster(i) for i in
+                list(set(self.cluster_tree.keys()) - set(self.cluster_tree.values()))] 
+            
+        
+
+    def live_points(self, logL=None):
+        """Get the live points within logL.
+
+        Parameters
+        ----------
+        logL: float or int, optional
+            Loglikelihood or iteration number to return live points.
+            If not provided, return the last set of active live points.
+
+        Returns
+        -------
+        live_points: Samples
+            Live points at either:
+                - contour logL (if input is float)
+                - ith iteration (if input is integer)
+                - last set of live points if no argument provided
+        """
+        if logL is None:
+            logL = self.logL_birth.max()
+        else:
+            try:
+                logL = float(self.logL[logL])
+            except KeyError:
+                pass
+        i = ((self.logL >= logL) & (self.logL_birth < logL)).to_numpy()
+        print(i)
+        return Samples(self[i]).set_weights(None)
+
+
+    def logX(self, nsamples=None):
+        """Log-Volume.
+
+        The log of the prior volume contained within each iso-likelihood
+        contour.
+
+        Parameters
+        ----------
+        nsamples: int, optional
+            - If nsamples is not supplied, calculate mean value
+            - If nsamples is integer, draw nsamples from the distribution of
+              values inferred by nested sampling
+
+        Returns
+        -------
+        if nsamples is None:
+            WeightedSeries like self
+        elif nsamples is int
+            WeightedDataFrame like self, columns range(nsamples)
+        """
+        if nsamples is None:
+            t = np.log(self.nlive/(self.nlive+1))
+            print("hello there")
+        else:
+            r = np.log(np.random.rand(len(self), nsamples))
+            w = self.get_weights()
+            r = self.nlive._constructor_expanddim(r, self.index, weights=w)
+            t = r.divide(self.nlive, axis=0)
+            t.columns.name = 'samples'
+        logX = t.cumsum()
+        logX.name = 'logX'
+        return logX
+
+    def logZs(self):
+        # TODO: calculate logZ for each of the final clusters
+        # first identify final clusters
+        finals = list(filter(lambda k: k not in self.cluster_tree.values(), self.cluster_tree.keys()))
+        print(finals)
+
+
