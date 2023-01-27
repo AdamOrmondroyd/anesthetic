@@ -42,7 +42,7 @@ def read_polychord(root, *args, **kwargs):
 
     return NestedSamples(data=data, columns=columns,
                          logL=logL, logL_birth=logL_birth,
-                         labels=labels, root=root, *args, **kwargs)
+                         labels=labels, *args, **kwargs)
 
 
 def read_polychord_cluster(root, *args, **kwargs):
@@ -83,7 +83,7 @@ def read_polychord_cluster(root, *args, **kwargs):
 
     ns = NestedSamples(data=data, columns=columns,
                          logL=logL, logL_birth=logL_birth, cluster=cluster,
-                         labels=labels, root=root, *args, **kwargs)
+                         labels=labels, *args, **kwargs)
 
     parent = read_cluster_tree(root, cluster)
     print(parent)
