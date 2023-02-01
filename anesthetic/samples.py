@@ -1268,5 +1268,6 @@ class ClusteredSamples(NestedSamples):
         # first identify final clusters
         finals = list(filter(lambda k: k not in self.cluster_tree.values(), self.cluster_tree.keys()))
         print(finals)
+        return [cluster.logZ() for cluster in self.clusters()]
 
 
