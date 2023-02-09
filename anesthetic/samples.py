@@ -1196,10 +1196,10 @@ class ClusteredSamples(NestedSamples):
 
     def clusters(self):
         """Return list of NestedSamples for each cluster."""
+        if len(self.cluster_tree) == 0:
+            return self
         return [self.cluster(i) for i in
-                list(set(self.cluster_tree.keys()) - set(self.cluster_tree.values()))] 
-            
-        
+                list(set(self.cluster_tree.keys()) - set(self.cluster_tree.values()))]
 
     def live_points(self, logL=None):
         """Get the live points within logL.
@@ -1228,7 +1228,6 @@ class ClusteredSamples(NestedSamples):
         i = ((self.logL >= logL) & (self.logL_birth < logL)).to_numpy()
         print(i)
         return Samples(self[i]).set_weights(None)
-
 
     def logX(self, nsamples=None):
         """Log-Volume.
@@ -1269,5 +1268,4 @@ class ClusteredSamples(NestedSamples):
         finals = list(filter(lambda k: k not in self.cluster_tree.values(), self.cluster_tree.keys()))
         print(finals)
         return [cluster.logZ() for cluster in self.clusters()]
-
 
