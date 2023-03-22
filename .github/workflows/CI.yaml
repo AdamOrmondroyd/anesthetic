@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_distpatch:
   push:
     branches: [master]
   pull_request:
