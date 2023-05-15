@@ -1,16 +1,138 @@
 """Pandas DataFrame and Series with weighted samples."""
 
+import warnings
 from inspect import signature
 import numpy as np
 from pandas import Series, DataFrame, concat, MultiIndex
+from pandas.core.groupby import GroupBy, SeriesGroupBy, DataFrameGroupBy, ops
+from pandas._libs import lib
+from pandas._libs.lib import no_default
+from pandas.util._exceptions import find_stack_level
 from pandas.util import hash_pandas_object
 from numpy.ma import masked_array
 from anesthetic.utils import (compress_weights, channel_capacity, quantile,
-                              temporary_seed)
+                              temporary_seed, adjust_docstrings)
+from pandas.core.dtypes.missing import notna
+
+
+class WeightedGroupBy(GroupBy):
+    """Weighted version of ``pandas.core.groupby.GroupBy``."""
+
+    grouper: ops.BaseGrouper
+    """:meta private:"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _add_weights(self, name, *args, **kwargs):
+        result = self.agg(lambda df: getattr(self.obj._constructor(df), name)
+                          (*args, **kwargs)).set_weights(self.get_weights())
+        return result.__finalize__(self.obj, method="groupby")
+
+    def mean(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("mean", *args, **kwargs)
+
+    def std(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("std", *args, **kwargs)
+
+    def median(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("median", *args, **kwargs)
+
+    def var(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("var", *args, **kwargs)
+
+    def kurt(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("kurt", *args, **kwargs)
+
+    def kurtosis(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("kurtosis", *args, **kwargs)
+
+    def sem(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("sem", *args, **kwargs)
+
+    def quantile(self, *args, **kwargs):  # noqa: D102
+        return self._add_weights("quantile", *args, **kwargs)
+
+    def get_weights(self):
+        """Return the weights of the grouped samples."""
+        return self.agg(lambda df: df.get_weights().sum())
+
+    def _make_wrapper(self, name):
+        _wrapper = super()._make_wrapper(name)
+
+        def wrapper(*args, **kwargs):
+            result = _wrapper(*args, **kwargs)
+            try:
+                index = result.index.get_level_values(self.keys)
+                weights = self.get_weights()[index]
+            except KeyError:
+                weights = self.get_weights()
+            return result.set_weights(weights, level=1)
+
+        wrapper.__name__ = name
+        return wrapper
+
+
+class WeightedSeriesGroupBy(WeightedGroupBy, SeriesGroupBy):
+    """Weighted version of ``pandas.core.groupby.SeriesGroupBy``."""
+
+    def sample(self, *args, **kwargs):  # noqa: D102
+        return super().sample(weights=self.obj.get_weights(), *args, **kwargs)
+
+
+class WeightedDataFrameGroupBy(WeightedGroupBy, DataFrameGroupBy):
+    """Weighted version of ``pandas.core.groupby.DataFrameGroupBy``."""
+
+    def get_weights(self):
+        """Return the weights of the grouped samples."""
+        return super().get_weights().min(axis=1-self.axis)
+
+    def _gotitem(self, key, ndim: int, subset=None):  # pragma: no cover
+        if ndim == 2:
+            if subset is None:
+                subset = self.obj
+            return WeightedDataFrameGroupBy(
+                subset,
+                self.grouper,
+                axis=self.axis,
+                level=self.level,
+                grouper=self.grouper,
+                exclusions=self.exclusions,
+                selection=key,
+                as_index=self.as_index,
+                sort=self.sort,
+                group_keys=self.group_keys,
+                squeeze=self.squeeze,
+                observed=self.observed,
+                mutated=self.mutated,
+                dropna=self.dropna,
+            )
+        elif ndim == 1:
+            if subset is None:
+                subset = self.obj[key]
+            return WeightedSeriesGroupBy(
+                subset,
+                level=self.level,
+                grouper=self.grouper,
+                selection=key,
+                sort=self.sort,
+                group_keys=self.group_keys,
+                squeeze=self.squeeze,
+                observed=self.observed,
+                dropna=self.dropna,
+            )
+
+        raise AssertionError("invalid ndim for _gotitem")
+
+    def sample(self, *args, **kwargs):  # noqa: D102
+        return super().sample(weights=self.obj.get_weights(), *args, **kwargs)
 
 
 class _WeightedObject(object):
-    """Common methods for WeightedSeries and WeightedDataFrame."""
+    """Common methods for `WeightedSeries` and `WeightedDataFrame`.
+
+    :meta public:
+    """
 
     def __init__(self, *args, **kwargs):
         weights = kwargs.pop('weights', None)
@@ -40,18 +162,16 @@ class _WeightedObject(object):
 
         Parameters
         ----------
-        weights: 1d array-like
+        weights : 1d array-like
             The sample weights to put in an index.
 
-        axis: int (0,1), optional
+        axis : int (0,1), default=0
             Whether to put weights in an index or column.
-            Default 0.
 
-        inplace: bool, optional
+        inplace : bool, default=False
             Whether to operate inplace, or return a new array.
-            Default False.
 
-        level: int
+        level : int
             Which level in the index to insert before.
             Defaults to inserting at back
 
@@ -101,18 +221,6 @@ class _WeightedObject(object):
         else:
             return answer.__finalize__(self, "reset_index")
 
-    def std(self, *args, **kwargs):
-        """Weighted standard deviation of the sampled distribution."""
-        return np.sqrt(self.var(*args, **kwargs))
-
-    def kurtosis(self, *args, **kwargs):
-        """Weighted kurtosis of the sampled distribution."""
-        return self.kurt(*args, **kwargs)
-
-    def median(self, *args, **kwargs):
-        """Weighted median of the sampled distribution."""
-        return self.quantile(*args, **kwargs)
-
     def neff(self, axis=0):
         """Effective number of samples."""
         if self.isweighted(axis):
@@ -122,15 +230,28 @@ class _WeightedObject(object):
 
 
 class WeightedSeries(_WeightedObject, Series):
-    """Weighted version of pandas.Series."""
+    """Weighted version of :class:`pandas.Series`."""
 
-    def mean(self, skipna=True):
-        """Weighted mean of the sampled distribution."""
+    def mean(self, skipna=True):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         null = self.isnull() & skipna
         return np.average(masked_array(self, null), weights=self.get_weights())
 
-    def var(self, skipna=True):
-        """Weighted variance of the sampled distribution."""
+    def std(self, *args, **kwargs):  # noqa: D102
+        return np.sqrt(self.var(*args, **kwargs))
+
+    def kurtosis(self, *args, **kwargs):  # noqa: D102
+        return self.kurt(*args, **kwargs)
+
+    def median(self, *args, **kwargs):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
+        return self.quantile(*args, **kwargs)
+
+    def var(self, skipna=True):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         null = self.isnull() & skipna
         mean = self.mean(skipna=skipna)
         if np.isnan(mean):
@@ -138,23 +259,30 @@ class WeightedSeries(_WeightedObject, Series):
         return np.average(masked_array((self-mean)**2, null),
                           weights=self.get_weights())
 
-    def cov(self, other, skipna=True):
-        """Weighted covariance with another Series."""
-        null = (self.isnull() | other.isnull()) & skipna
-        x = self.mean(skipna=skipna)
-        y = other.mean(skipna=skipna)
-        if np.isnan(x) or np.isnan(y):
+    def cov(self, other, *args, **kwargs):  # noqa: D102
+
+        this, other = self.align(other, join="inner", copy=False)
+        if len(this) == 0:
             return np.nan
-        return np.average(masked_array((self-x)*(other-y), null),
-                          weights=self.get_weights())
 
-    def corr(self, other, method="pearson", skipna=True):
-        """Weighted pearson correlation with another Series."""
-        norm = self.std(skipna=skipna)*other.std(skipna=skipna)
-        return self.cov(other, skipna=skipna)/norm
+        weights = self.index.to_frame()['weights']
+        weights, _ = weights.align(other, join="inner", copy=False)
 
-    def kurt(self, skipna=True):
-        """Weighted kurtosis of the sampled distribution."""
+        valid = notna(this) & notna(other)
+        if not valid.all():
+            this = this[valid]
+            other = other[valid]
+            weights = weights[valid]
+
+        return np.cov(this, other, aweights=weights)[0, 1]
+
+    def corr(self, other, *args, **kwargs):  # noqa: D102
+        norm = self.std(skipna=True)*other.std(skipna=True)
+        return self.cov(other, *args, **kwargs)/norm
+
+    def kurt(self, skipna=True):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         null = self.isnull() & skipna
         mean = self.mean(skipna=skipna)
         std = self.std(skipna=skipna)
@@ -163,8 +291,9 @@ class WeightedSeries(_WeightedObject, Series):
         return np.average(masked_array(((self-mean)/std)**4, null),
                           weights=self.get_weights())
 
-    def skew(self, skipna=True):
-        """Weighted skewness of the sampled distribution."""
+    def skew(self, skipna=True):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         null = self.isnull() & skipna
         mean = self.mean(skipna=skipna)
         std = self.std(skipna=skipna)
@@ -173,8 +302,9 @@ class WeightedSeries(_WeightedObject, Series):
         return np.average(masked_array(((self-mean)/std)**3, null),
                           weights=self.get_weights())
 
-    def mad(self, skipna=True):
-        """Weighted mean absolute deviation of the sampled distribution."""
+    def mad(self, skipna=True):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         null = self.isnull() & skipna
         mean = self.mean(skipna=skipna)
         if np.isnan(mean):
@@ -182,12 +312,12 @@ class WeightedSeries(_WeightedObject, Series):
         return np.average(masked_array(abs(self-mean), null),
                           weights=self.get_weights())
 
-    def sem(self, skipna=True):
-        """Weighted standard error of the mean."""
+    def sem(self, skipna=True):  # noqa: D102
         return np.sqrt(self.var(skipna=skipna)/self.neff())
 
-    def quantile(self, q=0.5, interpolation='linear'):
-        """Weighted quantile of the sampled distribution."""
+    def quantile(self, q=0.5, interpolation='linear'):  # noqa: D102
+        if self.get_weights().sum() == 0:
+            return np.nan
         return quantile(self.to_numpy(), q, self.get_weights(), interpolation)
 
     def compress(self, ncompress=True):
@@ -195,7 +325,7 @@ class WeightedSeries(_WeightedObject, Series):
 
         Parameters
         ----------
-        ncompress: int, optional
+        ncompress : int, optional
             effective number of samples after compression. If not supplied
             (or True), then reduce to the channel capacity (theoretical optimum
             compression). If <=0, then compress so that all weights are unity.
@@ -204,8 +334,7 @@ class WeightedSeries(_WeightedObject, Series):
         i = compress_weights(self.get_weights(), self._rand(), ncompress)
         return self.repeat(i)
 
-    def sample(self, *args, **kwargs):
-        """Weighted sample."""
+    def sample(self, *args, **kwargs):  # noqa: D102
         return super().sample(weights=self.get_weights(), *args, **kwargs)
 
     @property
@@ -216,13 +345,44 @@ class WeightedSeries(_WeightedObject, Series):
     def _constructor_expanddim(self):
         return WeightedDataFrame
 
+    def groupby(
+        self,
+        by=None,
+        axis=0,
+        level=None,
+        as_index=True,
+        sort=True,
+        group_keys=True,
+        observed=False,
+        dropna=True,
+    ):  # pragma: no cover  # noqa: D102
+        if level is None and by is None:
+            raise TypeError("You have to supply one of 'by' and 'level'")
+        if not as_index:
+            raise TypeError("as_index=False only valid with DataFrame")
+        axis = self._get_axis_number(axis)
+
+        return WeightedSeriesGroupBy(
+            obj=self,
+            keys=by,
+            axis=axis,
+            level=level,
+            as_index=as_index,
+            sort=sort,
+            group_keys=group_keys,
+            observed=observed,
+            dropna=dropna,
+        )
+
 
 class WeightedDataFrame(_WeightedObject, DataFrame):
-    """Weighted version of pandas.DataFrame."""
+    """Weighted version of :class:`pandas.DataFrame`."""
 
-    def mean(self, axis=0, skipna=True, *args, **kwargs):
-        """Weighted mean of the sampled distribution."""
+    def mean(self, axis=0, skipna=True, *args, **kwargs):  # noqa: D102
         if self.isweighted(axis):
+            if self.get_weights(axis).sum() == 0:
+                return self._constructor_sliced(np.nan,
+                                                index=self._get_axis(1-axis))
             null = self.isnull() & skipna
             mean = np.average(masked_array(self, null),
                               weights=self.get_weights(axis), axis=axis)
@@ -230,9 +390,20 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return super().mean(axis=axis, skipna=skipna, *args, **kwargs)
 
-    def var(self, axis=0, skipna=True, *args, **kwargs):
-        """Weighted variance of the sampled distribution."""
+    def std(self, *args, **kwargs):  # noqa: D102
+        return np.sqrt(self.var(*args, **kwargs))
+
+    def kurtosis(self, *args, **kwargs):  # noqa: D102
+        return self.kurt(*args, **kwargs)
+
+    def median(self, *args, **kwargs):  # noqa: D102
+        return self.quantile(*args, **kwargs)
+
+    def var(self, axis=0, skipna=True, *args, **kwargs):  # noqa: D102
         if self.isweighted(axis):
+            if self.get_weights(axis).sum() == 0:
+                return self._constructor_sliced(np.nan,
+                                                index=self._get_axis(1-axis))
             null = self.isnull() & skipna
             mean = self.mean(axis=axis, skipna=skipna)
             var = np.average(masked_array((self-mean)**2, null),
@@ -241,21 +412,25 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return super().var(axis=axis, skipna=skipna, *args, **kwargs)
 
-    def cov(self, skipna=True, *args, **kwargs):
-        """Weighted covariance of the sampled distribution."""
+    def cov(self, *args, **kwargs):  # noqa: D102
         if self.isweighted():
-            null = self.isnull() & skipna
-            mean = self.mean(skipna=skipna)
+            null = self.isnull()
+            mean = self.mean(skipna=True)
             x = masked_array(self - mean, null)
             cov = np.ma.dot(self.get_weights()*x.T, x) \
                 / self.get_weights().sum().T
+            if kwargs:
+                raise NotImplementedError("The keywords %s are not implemented"
+                                          "for the calculation of the"
+                                          "covariance with weighted samples."
+                                          % kwargs)
             return self._constructor(cov, index=self.columns,
                                      columns=self.columns)
         else:
             return super().cov(*args, **kwargs)
 
-    def corr(self, method="pearson", skipna=True, *args, **kwargs):
-        """Weighted pearson correlation matrix of the sampled distribution."""
+    def corr(self, method="pearson", skipna=True,
+             *args, **kwargs):  # noqa: D102
         if self.isweighted():
             cov = self.cov()
             diag = np.sqrt(np.diag(cov))
@@ -264,20 +439,25 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
             return super().corr(*args, **kwargs)
 
     def corrwith(self, other, axis=0, drop=False, method="pearson",
-                 *args, **kwargs):
-        """Pairwise weighted pearson correlation."""
-        if self.isweighted(axis):
+                 *args, **kwargs):  # noqa: D102
+        axis = self._get_axis_number(axis)
+        if not self.isweighted(axis):
+            return super().corrwith(other, drop=drop, axis=axis, method=method,
+                                    *args, **kwargs)
+        else:
             if isinstance(other, Series):
                 answer = self.apply(lambda x: other.corr(x, method=method),
                                     axis=axis)
                 return self._constructor_sliced(answer)
 
             left, right = self.align(other, join="inner", copy=False)
-            weights = self.get_weights(axis)
 
             if axis == 1:
                 left = left.T
                 right = right.T
+
+            weights = left.index.to_frame()['weights']
+            weights, _ = weights.align(right, join="inner", copy=False)
 
             # mask missing values
             left = left + right * 0
@@ -287,7 +467,7 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
             ldem = left - left.mean()
             rdem = right - right.mean()
 
-            num = (ldem * rdem * weights[:, None]).sum()
+            num = (ldem * rdem * weights.to_numpy()[:, None]).sum()
             dom = weights.sum() * left.std() * right.std()
 
             correl = num / dom
@@ -303,13 +483,12 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
                                                     index=idx_diff)])
 
             return self._constructor_sliced(correl)
-        else:
-            return super().corrwith(other, drop=drop, axis=axis, method=method,
-                                    *args, **kwargs)
 
-    def kurt(self, axis=0, skipna=True, *args, **kwargs):
-        """Weighted kurtosis of the sampled distribution."""
+    def kurt(self, axis=0, skipna=True, *args, **kwargs):  # noqa: D102
         if self.isweighted(axis):
+            if self.get_weights(axis).sum() == 0:
+                return self._constructor_sliced(np.nan,
+                                                index=self._get_axis(1-axis))
             null = self.isnull() & skipna
             mean = self.mean(axis=axis, skipna=skipna)
             std = self.std(axis=axis, skipna=skipna)
@@ -319,9 +498,11 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return super().kurt(axis=axis, skipna=skipna, *args, **kwargs)
 
-    def skew(self, axis=0, skipna=True, *args, **kwargs):
-        """Weighted skewness of the sampled distribution."""
+    def skew(self, axis=0, skipna=True, *args, **kwargs):  # noqa: D102
         if self.isweighted(axis):
+            if self.get_weights(axis).sum() == 0:
+                return self._constructor_sliced(np.nan,
+                                                index=self._get_axis(1-axis))
             null = self.isnull() & skipna
             mean = self.mean(axis=axis, skipna=skipna)
             std = self.std(axis=axis, skipna=skipna)
@@ -331,9 +512,11 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return super().skew(axis=axis, skipna=skipna, *args, **kwargs)
 
-    def mad(self, axis=0, skipna=True, *args, **kwargs):
-        """Weighted mean absolute deviation of the sampled distribution."""
+    def mad(self, axis=0, skipna=True, *args, **kwargs):  # noqa: D102
         if self.isweighted(axis):
+            if self.get_weights(axis).sum() == 0:
+                return self._constructor_sliced(np.nan,
+                                                index=self._get_axis(1-axis))
             null = self.isnull() & skipna
             mean = self.mean(axis=axis, skipna=skipna)
             mad = np.average(masked_array(abs(self-mean), null),
@@ -342,14 +525,12 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return super().var(axis=axis, skipna=skipna, *args, **kwargs)
 
-    def sem(self, axis=0, skipna=True):
-        """Weighted standard error of the mean."""
+    def sem(self, axis=0, skipna=True):  # noqa: D102
         n = self.neff(axis)
         return np.sqrt(self.var(axis=axis, skipna=skipna)/n)
 
     def quantile(self, q=0.5, axis=0, numeric_only=None,
-                 interpolation='linear', method=None):
-        """Weighted quantile of the sampled distribution."""
+                 interpolation='linear', method=None):  # noqa: D102
         if self.isweighted(axis):
             if numeric_only is not None or method is not None:
                 raise NotImplementedError(
@@ -377,7 +558,7 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
 
         Parameters
         ----------
-        ncompress: int, optional
+        ncompress : int, optional
             effective number of samples after compression. If not supplied
             (or True), then reduce to the channel capacity (theoretical optimum
             compression). If <=0, then compress so that all weights are unity.
@@ -395,8 +576,7 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
         else:
             return self
 
-    def sample(self, *args, **kwargs):
-        """Weighted sample."""
+    def sample(self, *args, **kwargs):  # noqa: D102
         sig = signature(DataFrame.sample)
         axis = sig.bind(self, *args, **kwargs).arguments.get('axis', 0)
         if self.isweighted(axis):
@@ -412,3 +592,62 @@ class WeightedDataFrame(_WeightedObject, DataFrame):
     @property
     def _constructor(self):
         return WeightedDataFrame
+
+    def groupby(
+        self,
+        by=None,
+        axis=no_default,
+        level=None,
+        as_index: bool = True,
+        sort: bool = True,
+        group_keys: bool = True,
+        observed: bool = False,
+        dropna: bool = True,
+    ):  # pragma: no cover  # noqa: D102
+        if axis is not lib.no_default:
+            axis = self._get_axis_number(axis)
+            if axis == 1:
+                warnings.warn(
+                    "DataFrame.groupby with axis=1 is deprecated. Do "
+                    "`frame.T.groupby(...)` without axis instead.",
+                    FutureWarning,
+                    stacklevel=find_stack_level(),
+                )
+            else:
+                warnings.warn(
+                    "The 'axis' keyword in DataFrame.groupby is deprecated "
+                    "and will be removed in a future version.",
+                    FutureWarning,
+                    stacklevel=find_stack_level(),
+                )
+        else:
+            axis = 0
+
+        if level is None and by is None:
+            raise TypeError("You have to supply one of 'by' and 'level'")
+
+        return WeightedDataFrameGroupBy(
+            obj=self,
+            keys=by,
+            axis=axis,
+            level=level,
+            as_index=as_index,
+            sort=sort,
+            group_keys=group_keys,
+            observed=observed,
+            dropna=dropna,
+        )
+
+
+for cls in [WeightedDataFrame, WeightedSeries, WeightedGroupBy,
+            WeightedDataFrameGroupBy, WeightedSeriesGroupBy]:
+    adjust_docstrings(cls, r'\bDataFrame\b', 'WeightedDataFrame')
+    adjust_docstrings(cls, r'\bDataFrames\b', 'WeightedDataFrames')
+    adjust_docstrings(cls, r'\bSeries\b', 'WeightedSeries')
+    adjust_docstrings(cls, 'core', 'pandas.core')
+    adjust_docstrings(cls, 'pandas.core.window.Rolling.quantile',
+                           'pandas.core.window.rolling.Rolling.quantile')
+    adjust_docstrings(cls, r'\bDataFrameGroupBy\b', 'WeightedDataFrameGroupBy')
+    adjust_docstrings(cls, r'\bSeriesGroupBy\b', 'WeightedSeriesGroupBy')
+adjust_docstrings(WeightedDataFrame, 'resample', 'pandas.DataFrame.resample')
+adjust_docstrings(WeightedSeries,    'resample', 'pandas.Series.resample')

@@ -4,8 +4,9 @@ import numpy as np
 from anesthetic.read.getdist import read_paramnames
 from anesthetic.samples import NestedSamples, ClusteredSamples
 
+
 def read_cluster_tree(root, cluster_column):
-    """Read the cluster tree"""
+    """Read the cluster tree."""
     cluster_tree_file = root + '_cluster_tree.txt'
     print(cluster_tree_file)
     data = np.loadtxt(cluster_tree_file).astype(int)
@@ -16,10 +17,10 @@ def read_cluster_tree(root, cluster_column):
             parent[cluster_number] = None
         parent[cluster_number] = data[cluster_number-1]
     return parent
-        
+
 
 def read_polychord(root, *args, **kwargs):
-    """Read ``<root>_dead-birth.txt`` in polychord format."""
+    """Read ``<root>_dead-birth.txt`` in PolyChord format."""
     birth_file = root + '_dead-birth.txt'
     birth_file
     data = np.loadtxt(birth_file)
@@ -51,7 +52,7 @@ def read_polychord_cluster(root, *args, **kwargs):
     birth_file
     data = np.loadtxt(birth_file)
     # drop cluster column as these are ints
-    data = data[:,:-1]
+    data = data[:, :-1]
 
     cluster = np.loadtxt(birth_file, usecols=-1, dtype=int)
 
@@ -67,7 +68,8 @@ def read_polychord_cluster(root, *args, **kwargs):
         data = np.concatenate([data, _data]) if _data.size else data
         data, unique_idx = np.unique(data, axis=0, return_index=True)
 
-        cluster = np.concatenate([cluster, _cluster]) if _cluster.size else data
+        cluster = np.concatenate(
+                [cluster, _cluster]) if _cluster.size else data
         cluster = cluster[unique_idx]
 
         sorted_idx = np.argsort(data[:, -2])
@@ -87,9 +89,9 @@ def read_polychord_cluster(root, *args, **kwargs):
 
     cs = ClusteredSamples(data=data, columns=columns,
                           cluster_tree=cluster_tree,
-                         logL=logL, logL_birth=logL_birth, cluster=cluster,
-                         labels=labels, *args, **kwargs)
+                          logL=logL, logL_birth=logL_birth, cluster=cluster,
+                          labels=labels, *args, **kwargs)
 
     print(cluster_tree)
-    
+
     return cs

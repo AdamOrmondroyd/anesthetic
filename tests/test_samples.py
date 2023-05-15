@@ -2,6 +2,7 @@ import anesthetic.examples._matplotlib_agg  # noqa: F401
 
 import sys
 import pytest
+from math import floor, ceil
 import numpy as np
 from pandas import MultiIndex
 import matplotlib.pyplot as plt
@@ -337,6 +338,26 @@ def test_plot_2d_colours():
         assert len(set(pc_colors)) == 1
 
 
+@pytest.mark.parametrize('kwargs', [dict(color='r', alpha=0.5, ls=':', lw=1),
+                                    dict(c='r', linestyle=':', linewidth=1),
+                                    dict(ec='r', fc='b'),
+                                    dict(edgecolor='r', facecolor='b'),
+                                    dict(cmap=plt.cm.RdBu),
+                                    dict(colormap=plt.cm.RdBu),
+                                    dict(cmap="viridis"),
+                                    dict(colormap="viridis")])
+@pytest.mark.parametrize(
+    'kind', ['kde', 'hist', 'default',
+             dict(diagonal='fastkde_1d', lower='fastkde_2d')]
+)
+def test_plot_2d_kwargs(kind, kwargs):
+    if isinstance(kind, str) or 'fastkde' in sys.modules:
+        np.random.seed(42)
+        pc = read_chains("./tests/example_data/pc")
+        fig, axes = make_2d_axes(['x0', 'x1'])
+        pc.plot_2d(axes, kind=kind, **kwargs)
+
+
 def test_plot_1d_colours():
     np.random.seed(3)
     gd = read_chains("./tests/example_data/gd")
@@ -393,6 +414,73 @@ def test_hist_levels():
     ns = read_chains('./tests/example_data/pc')
     ns.plot_2d(['x0', 'x1', 'x2', 'x3'], kind={'lower': 'hist_2d'},
                levels=[0.95, 0.68], bins=20)
+
+
+def test_mcmc_stats():
+    mcmc = read_chains('./tests/example_data/cb')
+    chains = mcmc.groupby(('chain', '$n_\\mathrm{chain}$'), group_keys=False)
+    n0, n1 = chains.count().iloc[:, 0]  # number samples in first chain
+    mcmc_head = chains.head(200).copy()
+    mcmc_tail = mcmc.remove_burn_in(burn_in=200)
+    mcmc_half = mcmc.remove_burn_in(burn_in=0.5)
+
+    # check indices after burn-in removal
+    assert mcmc_tail.index.get_level_values(0)[0] == 200
+    assert mcmc_tail.index.get_level_values(0)[n0] == 200 + n0 + 200
+    assert mcmc_half.index.get_level_values(0)[0] == floor(n0/2)
+    assert mcmc_half.index.get_level_values(0)[ceil(n0/2)] == n0 + floor(n1/2)
+
+    # check Gelman--Rubin statistic
+    assert mcmc_head.Gelman_Rubin() > 0.1
+    assert mcmc_tail.Gelman_Rubin() < 0.01
+    assert mcmc_half.Gelman_Rubin() < 0.01
+    assert mcmc_half.Gelman_Rubin(['x0']) < 0.01
+    assert mcmc_half.Gelman_Rubin(['x1']) < 0.01
+    with pytest.raises(np.linalg.LinAlgError):
+        mcmc['y1'] = mcmc.x1
+        mcmc['y2'] = mcmc.x1
+        mcmc['y3'] = mcmc.x1
+        mcmc.Gelman_Rubin(['x0', 'x1', 'y1', 'y2', 'y3'])
+
+    # more burn-in checks
+    mcmc_new = mcmc.remove_burn_in(burn_in=200.9)
+    assert len(mcmc_new) == n0 - 200 + n1 - 200
+    assert mcmc_new.index.get_level_values(0)[0] == 200
+    assert mcmc_new.index.get_level_values(0)[n0] == 200 + n0 + 200
+    mcmc_new = mcmc.remove_burn_in(burn_in=-0.5)
+    assert len(mcmc_new) == floor(n0/2) + floor(n1/2)
+    assert mcmc_new.index.get_level_values(0)[0] == ceil(n0/2)
+    assert mcmc_new.index.get_level_values(0)[floor(n0/2)] == n0 + floor(n1/2)
+    mcmc_new = mcmc.remove_burn_in(burn_in=-200)
+    assert len(mcmc_new) == 200 + 200
+    assert mcmc_new.index.get_level_values(0)[0] == n0 - 200
+    assert mcmc_new.index.get_level_values(0)[200] == n0 + n1 - 200
+    mcmc_new = mcmc.remove_burn_in(burn_in=[0.8, -0.75])
+    assert len(mcmc_new) == ceil(n0/5) + floor(3*n1/4)
+    assert mcmc_new.index.get_level_values(0)[0] == floor(4*n0/5)
+    assert mcmc_new.index.get_level_values(0)[ceil(n0/5)] == n0 + ceil(n1/4)
+    mcmc_new = mcmc.remove_burn_in(burn_in=[2, -100])
+    assert len(mcmc_new) == n0 - 2 + 100
+    assert mcmc_new.index.get_level_values(0)[0] == 2
+    assert mcmc_new.index.get_level_values(0)[n0-2] == n0 + n1 - 100
+
+    # test reset index
+    mcmc_new = mcmc.remove_burn_in(burn_in=200, reset_index=True)
+    assert len(mcmc_new) == n0 - 200 + n1 - 200
+    assert mcmc_new.index.get_level_values(0)[0] == 0
+    assert mcmc_new.index.get_level_values(0)[-1] == n0 - 200 + n1 - 200 - 1
+
+    # test inplace
+    assert mcmc.index.get_level_values(0)[0] == 0
+    assert mcmc.index.get_level_values(0)[n0] == n0
+    mcmc_new = mcmc.remove_burn_in(burn_in=200, inplace=True)
+    assert mcmc_new is None
+    assert len(mcmc) == n0 - 200 + n1 - 200
+    assert mcmc.index.get_level_values(0)[0] == 200
+    assert mcmc.index.get_level_values(0)[n0] == 200 + n0 + 200
+
+    with pytest.raises(ValueError):
+        mcmc.remove_burn_in(burn_in=[1, 2, 3])
 
 
 def test_logX():
@@ -629,12 +717,12 @@ def test_stats():
     nsamples = 10
     beta = [0., 0.5, 1.]
 
-    vals = ['logZ', 'D_KL', 'd_G', 'logL_P']
+    vals = ['logZ', 'D_KL', 'logL_P', 'd_G']
 
     labels = [r'$\ln\mathcal{Z}$',
               r'$\mathcal{D}_\mathrm{KL}$',
-              r'$d_\mathrm{G}$',
-              r'$\langle\ln\mathcal{L}\rangle_\mathcal{P}$']
+              r'$\langle\ln\mathcal{L}\rangle_\mathcal{P}$',
+              r'$d_\mathrm{G}$']
 
     stats = pc.stats()
     assert isinstance(stats, WeightedLabelledSeries)
@@ -1154,8 +1242,13 @@ def test_samples_dot_plot():
     try:
         axes = samples.plot.fastkde_2d('x0', 'x1')
         assert len(axes.collections) == 5
-        axes = samples.plot.fastkde_1d()
+        plt.close("all")
+        axes = samples.x0.plot.fastkde_1d()
         assert len(axes.lines) == 1
+        plt.close("all")
+        axes = samples[['x0', 'x1', 'x2', 'x3', 'x4']].plot.fastkde_1d()
+        assert len(axes.lines) == 5
+        plt.close("all")
     except ImportError:
         pass
 
@@ -1251,3 +1344,253 @@ def test_old_gui():
         make_2d_axes(['x0', 'y0'], tex={'x0': '$x_0$', 'y0': '$y_0$'})
     with pytest.raises(NotImplementedError):
         make_1d_axes(['x0', 'y0'], tex={'x0': '$x_0$', 'y0': '$y_0$'})
+
+
+def test_groupby_stats():
+    mcmc = read_chains('./tests/example_data/cb')
+    params = ['x0', 'x1']
+    chains = mcmc[params + ['chain']].groupby(('chain', '$n_\\mathrm{chain}$'))
+
+    assert chains.mean().isweighted() is True
+    assert chains.std().isweighted() is True
+    assert chains.median().isweighted() is True
+    assert chains.var().isweighted() is True
+    assert chains.kurt().isweighted() is True
+    assert chains.kurtosis().isweighted() is True
+    assert chains.skew().isweighted() is True
+    assert chains.sem().isweighted() is True
+    assert chains.corr().isweighted() is True
+    assert chains.cov().isweighted() is True
+    assert chains.hist().isweighted() is True
+    assert chains.corrwith(mcmc).isweighted() is True
+
+    w1 = mcmc.loc[mcmc.chain == 1].get_weights().sum()
+    w2 = mcmc.loc[mcmc.chain == 2].get_weights().sum()
+    assert np.all(chains.mean().get_weights() == [w1, w2])
+    assert np.all(chains.std().get_weights() == [w1, w2])
+    assert np.all(chains.median().get_weights() == [w1, w2])
+    assert np.all(chains.var().get_weights() == [w1, w2])
+    assert np.all(chains.kurt().get_weights() == [w1, w2])
+    assert np.all(chains.kurtosis().get_weights() == [w1, w2])
+    assert np.all(chains.skew().get_weights() == [w1, w2])
+    assert np.all(chains.sem().get_weights() == [w1, w2])
+    w = [w1 for _ in range(len(params))] + [w2 for _ in range(len(params))]
+    assert np.all(chains.corr().get_weights() == w)
+    assert np.all(chains.cov().get_weights() == w)
+    assert np.all(chains.corrwith(mcmc).get_weights() == [w1, w2])
+
+    for chain in [1, 2]:
+        mask = mcmc.chain == chain
+        assert_allclose(mcmc.loc[mask, params].mean(),
+                        chains.mean().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].std(),
+                        chains.std().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].median(),
+                        chains.median().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].var(),
+                        chains.var().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].kurt(),
+                        chains.kurt().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].kurtosis(),
+                        chains.kurtosis().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].skew(),
+                        chains.skew().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].mad(),
+                        chains.mad().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].sem(),
+                        chains.sem().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].cov(),
+                        chains.cov().loc[chain])
+        assert_allclose(mcmc.loc[mask, params].corr(),
+                        chains.corr().loc[chain])
+        assert_allclose([1, 1], chains.corrwith(mcmc.loc[mask, params]
+                                                ).loc[chain])
+
+        group = chains.get_group(chain).drop(
+                columns=('chain', '$n_\\mathrm{chain}$'))
+        assert_allclose(mcmc.loc[mask, params].mean(), group.mean())
+        assert_allclose(mcmc.loc[mask, params].std(), group.std())
+        assert_allclose(mcmc.loc[mask, params].median(), group.median())
+        assert_allclose(mcmc.loc[mask, params].var(), group.var())
+        assert_allclose(mcmc.loc[mask, params].kurt(), group.kurt())
+        assert_allclose(mcmc.loc[mask, params].kurtosis(), group.kurtosis())
+        assert_allclose(mcmc.loc[mask, params].skew(), group.skew())
+        assert_allclose(mcmc.loc[mask, params].mad(), group.mad())
+        assert_allclose(mcmc.loc[mask, params].sem(), group.sem())
+        assert_allclose(mcmc.loc[mask, params].cov(), group.cov())
+        assert_allclose(mcmc.loc[mask, params].corr(), group.corr())
+
+    assert_allclose(mcmc[params].mean(), chains.mean().mean())
+
+    for col in params:
+        if 'chain' not in col:
+            for chain in [1, 2]:
+                mask = mcmc.chain == chain
+                assert_allclose(mcmc.loc[mask, col].mean(),
+                                chains[col].mean().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].std(),
+                                chains[col].std().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].median(),
+                                chains[col].median().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].var(),
+                                chains[col].var().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].kurt(),
+                                chains[col].kurt().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].kurtosis(),
+                                chains[col].kurtosis().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].skew(),
+                                chains[col].skew().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].mad(),
+                                chains[col].mad().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].sem(),
+                                chains[col].sem().loc[chain])
+                assert_allclose(mcmc.loc[mask, col].cov(mcmc.loc[mask, col]),
+                                chains[col].cov(mcmc.loc[mask, col])
+                                .loc[chain])
+                assert_allclose(mcmc.loc[mask, col].corr(mcmc.loc[mask, col]),
+                                chains[col].corr(mcmc.loc[mask, col])
+                                .loc[chain])
+                q = np.random.rand()
+                assert_allclose(mcmc.loc[mask, col].quantile(q),
+                                chains[col].quantile(q).loc[chain])
+
+                group = chains[col].get_group(chain)
+                assert_allclose(mcmc.loc[mask, col].mean(), group.mean())
+                assert_allclose(mcmc.loc[mask, col].std(), group.std())
+                assert_allclose(mcmc.loc[mask, col].median(), group.median())
+                assert_allclose(mcmc.loc[mask, col].var(), group.var())
+                assert_allclose(mcmc.loc[mask, col].kurt(), group.kurt())
+                assert_allclose(mcmc.loc[mask, col].kurtosis(),
+                                group.kurtosis())
+                assert_allclose(mcmc.loc[mask, col].skew(), group.skew())
+                assert_allclose(mcmc.loc[mask, col].mad(), group.mad())
+                assert_allclose(mcmc.loc[mask, col].sem(), group.sem())
+
+                assert_allclose(mcmc.loc[mask, col].cov(mcmc.loc[mask, col]),
+                                group.cov(mcmc.loc[mask, col]))
+                assert_allclose(mcmc.loc[mask, col].corr(mcmc.loc[mask, col]),
+                                group.corr(mcmc.loc[mask, col]))
+
+    sample = chains.sample(5)
+    assert len(sample) == 10
+    assert sample.value_counts('chain')[1] == 5
+    assert sample.value_counts('chain')[2] == 5
+
+    chains = mcmc.chain.groupby(mcmc.chain)
+    sample = chains.sample(5)
+    assert len(sample) == 10
+    assert sample.value_counts()[1] == 5
+    assert sample.value_counts()[2] == 5
+
+
+def test_groupby_plots():
+    mcmc = read_chains('./tests/example_data/cb')
+    params = ['x0', 'x1']
+    chains = mcmc[params + ['chain']].groupby(('chain', '$n_\\mathrm{chain}$'))
+    for param in params:
+        gb_plot = chains.hist(param)
+        for chain in [1, 2]:
+            mcmc_axes = mcmc.loc[mcmc.chain == chain].hist(param).flatten()
+            gb_axes = gb_plot[chain].values[0].flatten()
+
+            mcmc_widths = [p.get_width() for ax in mcmc_axes
+                           for p in ax.patches]
+            gb_widths = [p.get_width() for ax in gb_axes for p in ax.patches]
+            assert_allclose(mcmc_widths, gb_widths)
+
+            mcmc_heights = [p.get_height() for ax in mcmc_axes
+                            for p in ax.patches]
+            gb_heights = [p.get_height() for ax in gb_axes for p in ax.patches]
+            assert_allclose(mcmc_heights, gb_heights)
+            plt.close('all')
+
+    for param in params:
+        _, gb_ax = plt.subplots()
+        gb_plots = chains[param].plot.hist(ax=gb_ax)
+        _, mcmc_ax = plt.subplots()
+        for chain, gb_ax in zip([1, 2], gb_plots):
+            mcmc_ax = mcmc.loc[mcmc.chain == chain][param].plot.hist(
+                    ax=mcmc_ax)
+        mcmc_widths = [p.get_width() for p in mcmc_ax.patches]
+        gb_widths = [p.get_width() for p in gb_ax.patches]
+        assert_allclose(mcmc_widths, gb_widths)
+    plt.close('all')
+
+    for param in params:
+        _, gb_ax = plt.subplots()
+        gb_plots = chains[param].plot.hist_1d(ax=gb_ax)
+        _, mcmc_ax = plt.subplots()
+        for chain, gb_ax in zip([1, 2], gb_plots):
+            mcmc_ax = mcmc.loc[mcmc.chain == chain][param].plot.hist_1d(
+                    ax=mcmc_ax)
+        mcmc_widths = [p.get_width() for p in mcmc_ax.patches]
+        gb_widths = [p.get_width() for p in gb_ax.patches]
+        assert_allclose(mcmc_widths, gb_widths)
+    plt.close('all')
+
+    for param in params:
+        _, gb_ax = plt.subplots()
+        gb_plots = chains[param].plot.kde(ax=gb_ax)
+        _, mcmc_ax = plt.subplots()
+        for chain, gb_ax in zip([1, 2], gb_plots):
+            mcmc_ax = mcmc.loc[mcmc.chain == chain][param].plot.kde(
+                    ax=mcmc_ax)
+        [assert_allclose(m.get_data(), g.get_data())
+         for m, g in zip(mcmc_ax.get_lines(), gb_ax.get_lines())]
+    plt.close('all')
+
+    for param in params:
+        _, gb_ax = plt.subplots()
+        gb_plots = chains[param].plot.kde_1d(ax=gb_ax)
+        _, mcmc_ax = plt.subplots()
+        for chain, gb_ax in zip([1, 2], gb_plots):
+            mcmc_ax = mcmc.loc[mcmc.chain == chain][param].plot.kde_1d(
+                    ax=mcmc_ax)
+        [assert_allclose(m.get_data(), g.get_data())
+         for m, g in zip(mcmc_ax.get_lines(), gb_ax.get_lines())]
+    plt.close('all')
+
+    for chain, gb_ax in zip([1, 2], chains.plot.hist_2d(*params)):
+        mcmc_ax = mcmc.loc[mcmc.chain == chain].plot.hist_2d(*params)
+        mcmc_widths = [p.get_width() for p in mcmc_ax.patches]
+        gb_widths = [p.get_width() for p in gb_ax.patches]
+        assert_allclose(mcmc_widths, gb_widths)
+        mcmc_heights = [p.get_height() for p in mcmc_ax.patches]
+        gb_heights = [p.get_height() for p in gb_ax.patches]
+        assert_allclose(mcmc_heights, gb_heights)
+        mcmc_colors = [p.get_facecolor() for p in mcmc_ax.patches]
+        gb_colors = [p.get_facecolor() for p in gb_ax.patches]
+        assert_allclose(mcmc_colors, gb_colors)
+    plt.close('all')
+
+    for chain, gb_ax in zip([1, 2], chains.plot.kde_2d(*params)):
+        mcmc_ax = mcmc.loc[mcmc.chain == chain].plot.kde_2d(*params)
+        mcmc_verts = [p.get_verts() for p in mcmc_ax.patches]
+        gb_verts = [p.get_verts() for p in gb_ax.patches]
+        assert_allclose(mcmc_verts, gb_verts)
+        mcmc_colors = [p.get_facecolor() for p in mcmc_ax.patches]
+        gb_colors = [p.get_facecolor() for p in gb_ax.patches]
+        assert_allclose(mcmc_colors, gb_colors)
+    plt.close('all')
+
+    if 'fastkde' in sys.modules:
+        for param in params:
+            _, gb_ax = plt.subplots()
+            gb_plots = chains[param].plot.fastkde_1d(ax=gb_ax)
+            _, mcmc_ax = plt.subplots()
+            for chain, gb_ax in zip([1, 2], gb_plots):
+                mcmc_ax = mcmc.loc[mcmc.chain == chain][param].plot.fastkde_1d(
+                        ax=mcmc_ax)
+            [assert_allclose(m.get_data(), g.get_data())
+             for m, g in zip(mcmc_ax.get_lines(), gb_ax.get_lines())]
+        plt.close('all')
+
+        for chain, gb_ax in zip([1, 2], chains.plot.fastkde_2d(*params)):
+            mcmc_ax = mcmc.loc[mcmc.chain == chain].plot.fastkde_2d(*params)
+            mcmc_verts = [p.get_verts() for p in mcmc_ax.patches]
+            gb_verts = [p.get_verts() for p in gb_ax.patches]
+            assert_allclose(mcmc_verts, gb_verts)
+            mcmc_colors = [p.get_facecolor() for p in mcmc_ax.patches]
+            gb_colors = [p.get_facecolor() for p in gb_ax.patches]
+            assert_allclose(mcmc_colors, gb_colors)
+        plt.close('all')

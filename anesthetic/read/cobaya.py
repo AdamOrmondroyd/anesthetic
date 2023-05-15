@@ -2,18 +2,17 @@
 import os
 import re
 import numpy as np
-from anesthetic.read.utils import remove_burn_in
 from anesthetic.samples import MCMCSamples
 from pandas import concat
 
 
 def read_paramnames(root):
-    r"""Read header of <root>.1.txt to infer the paramnames.
+    """Read header of ``<root>.1.txt`` to infer the paramnames.
 
     This is the data file of the first chain. It should have as many
     columns as there are parameters (sampled and derived) plus an
     additional two corresponding to the weights (first column) and the
-    logposterior (second column). The first line should start with a # and
+    log-posterior (second column). The first line should start with a # and
     should list the parameter names corresponding to the columns. This
     will be used as label in the pandas array.
     """
@@ -32,23 +31,14 @@ def read_paramnames(root):
 def read_cobaya(root, *args, **kwargs):
     """Read Cobaya yaml files.
 
-    Parameters
-    ----------
-    burn_in: float
-        if 0 < burn_in < 1:
-            discard the first burn_in fraction of samples
-        elif 1 < burn_in:
-            only keep samples [burn_in:]
-        Only works if `root` provided and if chains are GetDist or Cobaya
-        compatible.
-        default: False
+    Note that in order to optimally read chains from Cobaya you need to have
+    `GetDist <https://getdist.readthedocs.io/en/latest/>`__ installed.
 
     Returns
     -------
-    MCMCSamples
+    :class:`anesthetic.samples.MCMCSamples`
 
     """
-    burn_in = kwargs.pop('burn_in', None)
     dirname, basename = os.path.split(root)
 
     files = os.listdir(os.path.dirname(root))
@@ -67,7 +57,6 @@ def read_cobaya(root, *args, **kwargs):
     samples = []
     for i, chains_file in chains_files:
         data = np.loadtxt(chains_file)
-        data = remove_burn_in(data, burn_in)
         weights, logP, data = np.split(data, [1, 2], axis=1)
         mcmc = MCMCSamples(data=data, columns=columns,
                            weights=weights.flatten(), logL=logP,
@@ -82,7 +71,7 @@ def read_cobaya(root, *args, **kwargs):
     samples.root = root
     samples.label = kwargs['label']
 
-    if (samples.chain == samples.chain.iloc[0]).all():
+    if np.all(samples.chain == samples.chain.iloc[0]):
         samples.drop(columns='chain', inplace=True, level=0)
     else:
         samples.set_label('chain', r'$n_\mathrm{chain}$')
