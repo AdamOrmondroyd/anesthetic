@@ -670,13 +670,12 @@ class NestedSamples(Samples):
                                   logL_birth)
 
         super().__init__(logzero=logzero, *args, **kwargs)
-        if logL_birth is not None:
-            self.recompute(logL_birth, inplace=True)
-
         if cluster is not None:
             self['cluster'] = cluster
             if self.islabelled():
                 self.set_label('cluster', r'$i_\textrm{cluster}$')
+        if logL_birth is not None:
+            self.recompute(logL_birth, inplace=True)
 
     @property
     def _constructor(self):
