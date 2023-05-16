@@ -7,7 +7,7 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 from pandas.testing import assert_frame_equal
 from anesthetic import MCMCSamples, NestedSamples
 from anesthetic import read_chains
-from anesthetic.read.polychord import read_polychord
+from anesthetic.read.polychord import read_polychord, read_polychord_cluster
 from anesthetic.read.getdist import read_getdist
 from anesthetic.read.cobaya import read_cobaya
 from anesthetic.read.multinest import read_multinest
@@ -216,6 +216,10 @@ def test_read_polychord():
     assert_array_equal(ns_nolive[cols], ns[cols][:ns_nolive.shape[0]])
     assert_array_equal(ns_zero_live[cols], ns[cols])
     assert_array_equal(ns_single_live[cols], ns[cols])
+
+
+def test_read_polychord_cluster():
+    read_polychord_cluster('./tests/example_data/cluster')
 
 
 @pytest.mark.parametrize('root', ['gd', 'cb'])
