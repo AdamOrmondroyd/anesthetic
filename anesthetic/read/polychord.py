@@ -51,41 +51,28 @@ def read_polychord_cluster(root, *args, **kwargs):
     birth_file = root + '_dead-birth-cluster.txt'
     birth_file
     data = np.loadtxt(birth_file)
-    # drop cluster column as these are ints
-    data = data[:, :-1]
-
-    cluster = np.loadtxt(birth_file, usecols=-1, dtype=int)
 
     try:
         phys_live_birth_file = root + '_phys_live-birth-cluster.txt'
         _data = np.loadtxt(phys_live_birth_file)
         _data = np.atleast_2d(_data)
-        # drop cluster column
-        _data = _data[:, :-1]
-
-        _cluster = np.loadtxt(phys_live_birth_file, usecols=-1, dtype=int)
 
         data = np.concatenate([data, _data]) if _data.size else data
         data, unique_idx = np.unique(data, axis=0, return_index=True)
 
-        cluster = np.concatenate(
-                [cluster, _cluster]) if _cluster.size else data
-        cluster = cluster[unique_idx]
-
         sorted_idx = np.argsort(data[:, -2])
         data = data[sorted_idx, :]
-        cluster = cluster[sorted_idx]
+        # cluster = cluster[sorted_idx]
     except IOError:
         pass
-    data, logL, logL_birth = np.split(data, [-2, -1], axis=1)
+    data, logL, logL_birth, cluster = np.split(data, [-3, -2, -1], axis=1)
+    cluster = cluster.astype(int)
     params, labels = read_paramnames(root)
 
     columns = kwargs.pop('columns', params)
     kwargs['label'] = kwargs.get('label', os.path.basename(root))
 
-    print(cluster)
     cluster_tree = read_cluster_tree(root, cluster)
-    print(cluster_tree)
 
     cs = ClusteredSamples(data=data, columns=columns,
                           cluster_tree=cluster_tree,
