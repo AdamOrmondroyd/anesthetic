@@ -1010,6 +1010,7 @@ class NestedSamples(Samples):
 
     # TODO: remove this in version >= 2.1
     def D(self, nsamples=None):
+
         # noqa: disable=D102
         raise NotImplementedError(
             "This is anesthetic 1.0 syntax. You need to update, e.g.\n"
@@ -1317,11 +1318,14 @@ def merge_samples_weighted(samples, weights=None, label=None):
 class ClusteredSamples(NestedSamples):
     """Clustered version of :class:`anesthetic.NestedSamples."""
 
-    _metadata = NestedSamples._metadata + ['cluster_tree']
+    _metadata = NestedSamples._metadata + ['cluster_tree', 'cluster_fractions']
 
     def __init__(self, *args, **kwargs):
-        self.cluster_tree = kwargs.pop('cluster_tree')
         super().__init__(*args, **kwargs)
+
+    @property
+    def _constructor(self):
+        return ClusteredSamples
 
     def _parents(self, cluster):
         """
@@ -1342,8 +1346,19 @@ class ClusteredSamples(NestedSamples):
         """Return NestedSamples for just a particular cluster."""
         if i in self.cluster_tree.values():
             raise ValueError(f"Cluster {i} is not a leaf.")
-        _cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
-        return NestedSamples(_cs)
+        cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
+        parents = self._parents(i)
+        w = cs.get_weights()
+
+        for p in parents:
+            if p == 0:
+                continue
+
+            idx = [self._in_same_cluster(ii, p) for ii in cs["cluster"]]
+
+            w[idx] *= self.cluster_fractions[p]
+        cs.set_weights(w)
+        return NestedSamples(cs)
 
     def clusters(self):
         """Return list of NestedSamples for each cluster."""
@@ -1378,47 +1393,32 @@ class ClusteredSamples(NestedSamples):
             except KeyError:
                 pass
         i = ((self.logL >= logL) & (self.logL_birth < logL)).to_numpy()
-        print(i)
         return Samples(self[i]).set_weights(None)
 
-    def logX(self, nsamples=None):
-        """Log-Volume.
+    def logZi(self, i, nsamples=None, beta=None):
+        """Log-Evidence for a specific cluster."""
+        cs = self.cluster(i)
+        logw = self.logw(nsamples, beta)
+        idx = [ii in self._parents(i) for ii in self["cluster"]]
+        logw = logw[idx]
+        b = np.ones_like(logw)
+        for p in self._parents(i):
+            idx = [ii in self._parents(p)[:-1] for ii in cs["cluster"]]
+            b[idx] *= self.cluster_fractions[p-1]
 
-        The log of the prior volume contained within each iso-likelihood
-        contour.
+        logZ = logsumexp(logw, axis=0)  # , b=b)
 
-        Parameters
-        ----------
-        nsamples: int, optional
-            - If nsamples is not supplied, calculate mean value
-            - If nsamples is integer, draw nsamples from the distribution of
-              values inferred by nested sampling
-
-        Returns
-        -------
-        if nsamples is None:
-            WeightedSeries like self
-        elif nsamples is int
-            WeightedDataFrame like self, columns range(nsamples)
-        """
-        if nsamples is None:
-            t = np.log(self.nlive/(self.nlive+1))
-            print("hello there")
+        if np.isscalar(logZ):
+            return logZ
         else:
-            r = np.log(np.random.rand(len(self), nsamples))
-            w = self.get_weights()
-            r = self.nlive._constructor_expanddim(r, self.index, weights=w)
-            t = r.divide(self.nlive, axis=0)
-            t.columns.name = 'samples'
-        logX = t.cumsum()
-        logX.name = 'logX'
-        return logX
+            return logw._constructor_sliced(logZ, name='logZ',
+                                            index=logw.columns).squeeze()
 
     def logZs(self):
         """Log-Evidence for each cluster."""
         # TODO: calculate logZ for each of the final clusters
         # first identify final clusters
-        finals = list(filter(lambda k: k not in self.cluster_tree.values(),
+        leaves = list(filter(lambda k: k not in self.cluster_tree.values(),
                              self.cluster_tree.keys()))
-        print(finals)
+        print(leaves)
         return [cluster.logZ() for cluster in self.clusters()]

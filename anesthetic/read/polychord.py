@@ -9,14 +9,16 @@ def read_cluster_tree(root, cluster_column):
     """Read the cluster tree."""
     cluster_tree_file = root + '_cluster_tree.txt'
     print(cluster_tree_file)
-    data = np.loadtxt(cluster_tree_file).astype(int)
+    data = np.loadtxt(cluster_tree_file)
+    print(data)
     clusters = np.unique(cluster_column)
     parent = {}
+    split_fractions = data[:, 1]
     for cluster_number in clusters:
         if 0 == cluster_number:
             parent[cluster_number] = None
-        parent[cluster_number] = data[cluster_number-1]
-    return parent
+        parent[cluster_number] = int(data[cluster_number-1, 0])
+    return parent, split_fractions
 
 
 def read_polychord(root, *args, **kwargs):
@@ -62,7 +64,6 @@ def read_polychord_cluster(root, *args, **kwargs):
 
         sorted_idx = np.argsort(data[:, -2])
         data = data[sorted_idx, :]
-        # cluster = cluster[sorted_idx]
     except IOError:
         pass
     data, logL, logL_birth, cluster = np.split(data, [-3, -2, -1], axis=1)
@@ -70,14 +71,17 @@ def read_polychord_cluster(root, *args, **kwargs):
     params, labels = read_paramnames(root)
 
     columns = kwargs.pop('columns', params)
+    labels = kwargs.pop('labels', labels)
     kwargs['label'] = kwargs.get('label', os.path.basename(root))
 
-    cluster_tree = read_cluster_tree(root, cluster)
+    cluster_tree, cluster_fractions = read_cluster_tree(root, cluster)
 
     cs = ClusteredSamples(data=data, columns=columns,
-                          cluster_tree=cluster_tree,
-                          logL=logL, logL_birth=logL_birth, cluster=cluster,
+                          logL=logL, logL_birth=logL_birth,
+                          cluster=cluster,
                           labels=labels, *args, **kwargs)
+    cs.cluster_tree = cluster_tree
+    cs.cluster_fractions = cluster_fractions
 
     print(cluster_tree)
 
