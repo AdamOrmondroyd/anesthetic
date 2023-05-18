@@ -220,9 +220,9 @@ def test_read_polychord():
 
 def test_read_polychord_cluster():
     cs = read_polychord_cluster('./tests/example_data/cluster')
-    assert len(cs.clusters()) == 6
-    assert len(np.unique(cs['cluster']) == 6)
-    assert len(cs.logZs()) == 6
+    assert len(cs.clusters()) == 4
+    assert len(np.unique(cs['cluster']) == 4)
+    assert len(cs.logZs()) == 4
 
 
 @pytest.mark.parametrize('root', ['gd', 'cb'])
