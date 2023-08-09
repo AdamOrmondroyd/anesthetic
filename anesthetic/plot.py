@@ -16,14 +16,6 @@ from scipy.stats import gaussian_kde
 from scipy.special import erf
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.axes import Axes
-try:
-    from astropy.visualization import hist
-except ImportError:
-    pass
-try:
-    from anesthetic.kde import fastkde_1d, fastkde_2d
-except ImportError:
-    pass
 import matplotlib.cbook as cbook
 import matplotlib.lines as mlines
 from matplotlib.ticker import MaxNLocator, AutoMinorLocator
@@ -405,14 +397,14 @@ class AxesDataFrame(DataFrame):
                     elif a.position == 'diagonal':  # not first column
                         a.tick_params('y', direction='out', length=tl/2,
                                       left=True, labelleft=False, **kwargs)
-                    elif ax_[i-1].position == 'diagonal':  # next to diagonal
+                    elif ax_.iloc[i-1].position == 'diagonal':  # next to diag
                         a.tick_params('y', direction='in', length=tl/2,
                                       left=True, labelleft=False, **kwargs)
                     else:  # not diagonal and not first column
                         a.tick_params('y', direction='inout',
                                       left=True, labelleft=False, **kwargs)
             elif len(ax_) and direction == 'outer':  # no inner ticks
-                for a in ax_[1:]:
+                for a in ax_.iloc[1:]:
                     a.tick_params('y', left=False, labelleft=False, **kwargs)
             elif len(ax_) and direction is None:  # no ticks at all
                 for a in ax_:
@@ -437,7 +429,7 @@ class AxesDataFrame(DataFrame):
                                                    bottom=True,
                                                    labelbottom=False, **kwargs)
                 elif direction == 'outer':  # no inner ticks
-                    for a in ax_[:-1]:
+                    for a in ax_.iloc[:-1]:
                         a.tick_params('x', bottom=False, labelbottom=False,
                                       **kwargs)
                 elif direction is None:  # no ticks at all
@@ -613,7 +605,9 @@ def make_1d_axes(params, ncol=None, labels=None,
             "make_1d_axes(..., labels=tex)  # anesthetic 2.0"
             )
     fig = fig_kw.pop('fig') if 'fig' in fig_kw else plt.figure(**fig_kw)
-    axes = AxesSeries(index=np.atleast_1d(params),
+    if np.array(params).ndim == 0:
+        params = [params]
+    axes = AxesSeries(index=params,
                       fig=fig,
                       ncol=ncol,
                       labels=labels,
@@ -697,6 +691,7 @@ def make_2d_axes(params, labels=None, lower=True, diagonal=True, upper=True,
                          ticks=ticks,
                          gridspec_kw=gridspec_kw,
                          subplot_spec=subplot_spec)
+    fig.align_labels()
     return fig, axes
 
 
@@ -765,8 +760,9 @@ def fastkde_plot_1d(ax, data, *args, **kwargs):
     q = quantile_plot_interval(q=q)
 
     try:
+        from anesthetic.kde import fastkde_1d
         x, p, xmin, xmax = fastkde_1d(data, xmin, xmax)
-    except NameError:
+    except ImportError:
         raise ImportError("You need to install fastkde to use fastkde")
     p /= p.max()
     i = ((x > quantile(x, q[0], p)) & (x < quantile(x, q[-1], p)))
@@ -808,11 +804,16 @@ def kde_plot_1d(ax, data, *args, **kwargs):
     weights : np.array, optional
         Sample weights.
 
-    ncompress : int, default=False
+    ncompress : int, str, default=False
         Degree of compression.
-        If int: number of samples returned.
-        If True: compresses to the channel capacity.
-        If False: no compression.
+
+        * If ``False``: no compression.
+        * If ``True``: compresses to the channel capacity, equivalent to
+          ``ncompress='entropy'``.
+        * If ``int``: desired number of samples after compression.
+        * If ``str``: determine number from the Huggins-Roy family of
+          effective samples in :func:`anesthetic.utils.neff`
+          with ``beta=ncompress``.
 
     nplot_1d : int, default=100
         Number of plotting points to use.
@@ -836,6 +837,9 @@ def kde_plot_1d(ax, data, *args, **kwargs):
 
     bw_method : str, scalar or callable, optional
         Forwarded to :class:`scipy.stats.gaussian_kde`.
+
+    beta : int, float, default = 1
+        The value of beta used to calculate the number of effective samples
 
     Returns
     -------
@@ -956,17 +960,19 @@ def hist_plot_1d(ax, data, *args, **kwargs):
     q = quantile_plot_interval(q=q)
     xmin = quantile(data, q[0], weights)
     xmax = quantile(data, q[-1], weights)
+    range = kwargs.pop('range', (xmin, xmax))
 
-    if type(bins) == str and bins in ['knuth', 'freedman', 'blocks']:
+    if isinstance(bins, str) and bins in ['knuth', 'freedman', 'blocks']:
         try:
+            from astropy.visualization import hist
             h, edges, bars = hist(data, ax=ax, bins=bins,
-                                  range=(xmin, xmax), histtype=histtype,
+                                  range=range, histtype=histtype,
                                   color=color, *args, **kwargs)
-        except NameError:
+        except ImportError:
             raise ImportError("You need to install astropy to use astropyhist")
     else:
         h, edges, bars = ax.hist(data, weights=weights, bins=bins,
-                                 range=(xmin, xmax), histtype=histtype,
+                                 range=range, histtype=histtype,
                                  color=color, *args, **kwargs)
 
     if histtype == 'bar' and not density:
@@ -1036,10 +1042,11 @@ def fastkde_contour_plot_2d(ax, data_x, data_y, *args, **kwargs):
     kwargs.pop('q', None)
 
     try:
+        from anesthetic.kde import fastkde_2d
         x, y, pdf, xmin, xmax, ymin, ymax = fastkde_2d(data_x, data_y,
                                                        xmin=xmin, xmax=xmax,
                                                        ymin=ymin, ymax=ymax)
-    except NameError:
+    except ImportError:
         raise ImportError("You need to install fastkde to use fastkde")
 
     levels = iso_probability_contours(pdf, contours=levels)
@@ -1103,11 +1110,16 @@ def kde_contour_plot_2d(ax, data_x, data_y, *args, **kwargs):
         Has to be ordered from outermost to innermost contour.
         Default: [0.95, 0.68]
 
-    ncompress : int, default=1000
+    ncompress : int, str, default='equal'
         Degree of compression.
-        If int: number of samples returned.
-        If True: compresses to the channel capacity.
-        If False: no compression.
+
+        * If ``int``: desired number of samples after compression.
+        * If ``False``: no compression.
+        * If ``True``: compresses to the channel capacity, equivalent to
+          ``ncompress='entropy'``.
+        * If ``str``: determine number from the Huggins-Roy family of
+          effective samples in :func:`anesthetic.utils.neff`
+          with ``beta=ncompress``.
 
     nplot_2d : int, default=1000
         Number of plotting points to use.
@@ -1133,7 +1145,7 @@ def kde_contour_plot_2d(ax, data_x, data_y, *args, **kwargs):
         data_y = data_y[weights != 0]
         weights = weights[weights != 0]
 
-    ncompress = kwargs.pop('ncompress', 1000)
+    ncompress = kwargs.pop('ncompress', 'equal')
     nplot = kwargs.pop('nplot_2d', 1000)
     bw_method = kwargs.pop('bw_method', None)
     label = kwargs.pop('label', None)
@@ -1270,7 +1282,8 @@ def hist_plot_2d(ax, data_x, data_y, *args, **kwargs):
             pdf[pdf < cmin] = np.ma.masked
         if cmax is not None:
             pdf[pdf > cmax] = np.ma.masked
-        image = ax.pcolormesh(x, y, pdf.T, cmap=cmap, vmin=vmin,
+        snap = kwargs.pop('snap', True)
+        image = ax.pcolormesh(x, y, pdf.T, cmap=cmap, vmin=vmin, snap=snap,
                               *args, **kwargs)
 
     ax.add_patch(plt.Rectangle((0, 0), 0, 0, fc=cmap(0.999), ec=cmap(0.32),
@@ -1293,6 +1306,17 @@ def scatter_plot_2d(ax, data_x, data_y, *args, **kwargs):
 
     data_x, data_y : np.array
         x and y coordinates of uniformly weighted samples to plot.
+
+    ncompress : int, str, default='equal'
+        Degree of compression.
+
+        * If ``int``: desired number of samples after compression.
+        * If ``False``: no compression.
+        * If ``True``: compresses to the channel capacity, equivalent to
+          ``ncompress='entropy'``.
+        * If ``str``: determine number from the Huggins-Roy family of
+          effective samples in :func:`anesthetic.utils.neff`
+          with ``beta=ncompress``.
 
     Returns
     -------
