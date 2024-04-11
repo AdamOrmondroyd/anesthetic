@@ -1429,7 +1429,7 @@ def merge_samples_weighted(samples, weights=None, label=None):
 
 
 class ClusteredSamples(NestedSamples):
-    """Clustered version of :class:`anesthetic.NestedSamples."""
+    """Clustered version of :class:`anesthetic.samples.NestedSamples."""
 
     _metadata = NestedSamples._metadata + ['cluster_tree', 'cluster_fractions']
 
