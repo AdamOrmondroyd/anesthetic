@@ -1467,7 +1467,14 @@ class ClusteredSamples(NestedSamples):
     _metadata = NestedSamples._metadata + ['cluster_tree']
 
     def __init__(self, *args, **kwargs):
+        cluster = kwargs.pop('cluster', None)
+        cluster_tree = kwargs.pop('cluster_tree', None)
         super().__init__(*args, **kwargs)
+        if cluster is not None:
+            self['cluster'] = cluster
+            self.set_label('cluster', r'$i_\textrm{cluster}$')
+        if cluster_tree is not None:
+            self.cluster_tree = cluster_tree
 
     @property
     def _constructor(self):
