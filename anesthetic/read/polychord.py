@@ -68,9 +68,9 @@ def read_polychord_cluster(root, *args, **kwargs):
         _data = np.atleast_2d(_data)
 
         data = np.concatenate([data, _data]) if _data.size else data
-        data, unique_idx = np.unique(data, axis=0, return_index=True)
+        data = np.unique(data, axis=0)
 
-        sorted_idx = np.argsort(data[:, -2])
+        sorted_idx = np.argsort(data[:, -3])
         data = data[sorted_idx, :]
     except IOError:
         pass
