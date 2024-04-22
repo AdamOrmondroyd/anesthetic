@@ -1510,33 +1510,6 @@ class ClusteredSamples(NestedSamples):
                 list(set(self.cluster_tree.keys())
                      - set(self.cluster_tree.values()))]
 
-    def live_points(self, logL=None):
-        """Get the live points within logL.
-
-        Parameters
-        ----------
-        logL: float or int, optional
-            Loglikelihood or iteration number to return live points.
-            If not provided, return the last set of active live points.
-
-        Returns
-        -------
-        live_points: Samples
-            Live points at either:
-                - contour logL (if input is float)
-                - ith iteration (if input is integer)
-                - last set of live points if no argument provided
-        """
-        if logL is None:
-            logL = self.logL_birth.max()
-        else:
-            try:
-                logL = float(self.logL[logL])
-            except KeyError:
-                pass
-        i = ((self.logL >= logL) & (self.logL_birth < logL)).to_numpy()
-        return Samples(self[i]).set_weights(None)
-
     def logZi(self, i, nsamples=None, beta=None):
         """Log-Evidence for a specific cluster."""
         cs = self._cluster(i)
