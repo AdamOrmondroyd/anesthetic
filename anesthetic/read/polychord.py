@@ -8,17 +8,16 @@ from anesthetic.samples import NestedSamples, ClusteredSamples
 def read_cluster_tree(root, cluster_column):
     """Read the cluster tree."""
     cluster_tree_file = root + '_cluster_tree.txt'
-    print(cluster_tree_file)
+    print(f'{cluster_tree_file=}')
     data = np.loadtxt(cluster_tree_file)
-    print(data)
+    print(f"{data=}")
     clusters = np.unique(cluster_column)
     parent = {}
-    split_fractions = data[:, 1]
     for cluster_number in clusters:
         if 0 == cluster_number:
             parent[cluster_number] = None
-        parent[cluster_number] = int(data[cluster_number-1, 0])
-    return parent, split_fractions
+        parent[cluster_number] = int(data[cluster_number-1])
+    return parent
 
 
 def read_polychord(root, *args, **kwargs):
@@ -82,14 +81,12 @@ def read_polychord_cluster(root, *args, **kwargs):
     labels = kwargs.pop('labels', labels)
     kwargs['label'] = kwargs.get('label', os.path.basename(root))
 
-    cluster_tree, cluster_fractions = read_cluster_tree(root, cluster)
+    cluster_tree = read_cluster_tree(root, cluster)
 
     cs = ClusteredSamples(data=data, columns=columns,
                           logL=logL, logL_birth=logL_birth,
-                          cluster=cluster,
+                          cluster=cluster, cluster_tree=cluster_tree,
                           labels=labels, *args, **kwargs)
-    cs.cluster_tree = cluster_tree
-    cs.cluster_fractions = cluster_fractions
 
     print(cluster_tree)
 
