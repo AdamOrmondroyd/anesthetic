@@ -1420,9 +1420,51 @@ def merge_samples_weighted(samples, weights=None, label=None):
 
 
 class ClusteredSamples(NestedSamples):
-    """Clustered version of :class:`anesthetic.samples.NestedSamples."""
+    """Clustered version of :class:`anesthetic.samples.NestedSamples.
 
-    _metadata = NestedSamples._metadata + ['cluster_tree', 'cluster_fractions']
+    We extend the :class:`NestedSamples` class with the additional method:
+
+    * ``self.clusters()``
+
+    Parameters
+    ----------
+    data : np.array
+        Coordinates of samples. shape = (nsamples, ndims).
+
+    columns : list(str)
+        reference names of parameters
+
+    logL : np.array
+        loglikelihoods of samples.
+
+    logL_birth : np.array or int
+        birth loglikelihoods, or number of live points.
+
+    cluster: np.array
+        cluster numbers, in the left-child right-sibling format
+
+    cluster_tree: dict
+        cluster tree, mapping from cluster number to parent cluster number
+
+    labels : dict
+        optional mapping from column names to plot labels
+
+    label : str
+        Legend label
+        default: basename of root
+
+    beta : float
+        thermodynamic inverse temperature
+        default: 1.
+
+    logzero : float
+        The threshold for `log(0)` values assigned to rejected sample points.
+        Anything equal or below this value is set to `-np.inf`.
+        default: -1e30
+
+    """
+
+    _metadata = NestedSamples._metadata + ['cluster_tree']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
