@@ -1500,18 +1500,7 @@ class ClusteredSamples(NestedSamples):
         if i in self.cluster_tree.values():
             raise ValueError(f"Cluster {i} is not a leaf.")
         cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
-        parents = self._parents(i)
-        w = cs.get_weights()
-
-        for p in parents:
-            if p == 0:
-                continue
-
-            idx = [self._in_same_cluster(ii, p) for ii in cs["cluster"]]
-
-            w[idx] *= self.cluster_fractions[p]
-        cs.set_weights(w)
-        return NestedSamples(cs)
+        return NestedSamples(cs).recompute()
 
     def clusters(self):
         """Return list of NestedSamples for each cluster."""
