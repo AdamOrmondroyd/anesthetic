@@ -1315,11 +1315,13 @@ class NestedSamples(Samples):
 
             samples.sort_values('logL', inplace=True)
             samples.reset_index(drop=True, inplace=True)
+            # NOTE: sets weights to 1
             nlive = compute_nlive(samples.logL, samples.logL_birth)
             samples['nlive'] = nlive
             if self.islabelled():
                 samples.set_label('nlive', nlive_label)
 
+        # NOTE: somehow this updates the weights?
         samples.beta = samples._beta
 
         if np.any(pandas.isna(samples.logL)):

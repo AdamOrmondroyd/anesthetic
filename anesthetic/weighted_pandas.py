@@ -244,6 +244,7 @@ class _WeightedObject(object):
         weights = self.get_weights()
         answer = super().reset_index(level=level, drop=drop,
                                      inplace=False, *args, **kwargs)
+        # NOTE: THIS IS WHERE THE WEIGHTS ARE ADDED!
         answer.set_weights(weights, inplace=True)
         if inplace:
             self._update_inplace(answer)
