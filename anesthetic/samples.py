@@ -1528,8 +1528,6 @@ class ClusteredSamples(NestedSamples):
 
     def _cluster(self, i):
         """Return NestedSamples for just a particular cluster."""
-        # if i in self.cluster_tree.values():
-        # raise ValueError(f"Cluster {i} is not a leaf.")
         cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
         return cs
 
@@ -1570,6 +1568,9 @@ class ClusteredSamples(NestedSamples):
         """Log-Evidence for a specific cluster."""
         if cluster is None:
             return super().logZ(nsamples=None, beta=None)
+        if (cluster in self.cluster_tree.values()
+                and len(self.cluster_tree) > 1):
+            raise ValueError(f"Cluster {cluster} is not a leaf.")
 
         samples = self._cluster(cluster)
         logw = samples.logw(nsamples, beta)
@@ -1577,6 +1578,7 @@ class ClusteredSamples(NestedSamples):
         for parent in self._parents(cluster):
             alpha[samples.cluster == parent] = self._alpha(cluster, parent)
         alpha = self._alpha(cluster, 0)
+        print(f'{alpha=}')
         logw = logw + np.log(alpha)
         logZ = logsumexp(logw, axis=0)
 
@@ -1592,6 +1594,8 @@ class ClusteredSamples(NestedSamples):
         # first identify final clusters
         leaves = list(filter(lambda k: k not in self.cluster_tree.values(),
                              self.cluster_tree.keys()))
+        if not leaves:
+            leaves = [0]
         return [self.logZi(leaf, nsamples, beta) for leaf in leaves]
 
     def logZ(self, cluster=None, nsamples=None, beta=None):
