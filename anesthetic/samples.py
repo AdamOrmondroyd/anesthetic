@@ -1315,8 +1315,29 @@ class NestedSamples(Samples):
 
             samples.sort_values('logL', inplace=True)
             samples.reset_index(drop=True, inplace=True)
-            # NOTE: sets weights to 1
-            nlive = compute_nlive(samples.logL, samples.logL_birth)
+            if 'cluster' in samples:
+                nlive = np.zeros(len(self), dtype=int)
+                # NOTE: sets weights to 1
+                for c in np.unique(samples.cluster):
+                    print(f"{c=}")
+                    same_cluster = [i for i in np.unique(samples.cluster)
+                                    if samples._in_same_cluster(c, i)
+                                    and i >= c]
+                    print(f"{same_cluster=}")
+                    samples_c = samples[np.isin(samples.cluster, same_cluster)]
+                    nlive_c = compute_nlive(
+                        samples_c.logL,
+                        samples_c.logL_birth
+                    )
+                    print(samples.cluster == c)
+                    print(samples_c.cluster == c)
+                    nlive[
+                       (samples.cluster == c).to_numpy()
+                    ] = nlive_c[
+                        (samples_c.cluster == c).to_numpy()
+                    ]
+            else:
+                nlive = compute_nlive(samples.logL, samples.logL_birth)
             samples['nlive'] = nlive
             if self.islabelled():
                 samples.set_label('nlive', nlive_label)
