@@ -1591,14 +1591,46 @@ class ClusteredSamples(NestedSamples):
             return logw._constructor_sliced(logZ, name='logZ',
                                             index=logw.columns).squeeze()
 
-    def logZs(self):
-        """Log-Evidence for each cluster."""
+    def logZs(self, nsamples=None, beta=None):
+        """Log-Evidences for each cluster."""
         # TODO: calculate logZ for each of the final clusters
         # first identify final clusters
         leaves = list(filter(lambda k: k not in self.cluster_tree.values(),
                              self.cluster_tree.keys()))
         print(leaves)
-        return [self.logZi(leaf) for leaf in leaves]
+        return [self.logZi(leaf, nsamples, beta) for leaf in leaves]
+
+    def logZ(self, cluster=None, nsamples=None, beta=None):
+        """Log-Evidence.
+
+        Parameters
+        ----------
+        nsamples : int, optional
+            - If nsamples is not supplied, calculate mean value
+            - If nsamples is integer, draw nsamples from the distribution of
+              values inferred by nested sampling
+            - If nsamples is array, nsamples is assumed to be logw
+
+        beta : float, array-like, optional
+            inverse temperature(s) beta=1/kT. Default self.beta
+
+        Returns
+        -------
+        if nsamples is array-like:
+            :class:`pandas.Series`, index nsamples.columns
+        elif beta is scalar and nsamples is None:
+            float
+        elif beta is array-like and nsamples is None:
+            :class:`pandas.Series`, index beta
+        elif beta is scalar and nsamples is int:
+            :class:`pandas.Series`, index range(nsamples)
+        elif beta is array-like and nsamples is int:
+            :class:`pandas.Series`, :class:`pandas.MultiIndex` columns the
+            product of beta and range(nsamples)
+        """
+        if cluster is not None:
+            return self.logZi(cluster, nsamples, beta)
+        return logsumexp([self.logZs(nsamples, beta)], axis=0)
 
 
 adjust_docstrings(Samples.to_hdf, r'(pd|pandas)\.DataFrame', 'DataFrame')
