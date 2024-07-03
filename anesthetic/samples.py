@@ -1498,10 +1498,14 @@ class ClusteredSamples(NestedSamples):
             self.set_label('cluster', r'$i_\textrm{cluster}$')
         if cluster_tree is not None:
             self.cluster_tree = cluster_tree
+            self.recompute(inplace=True)
 
     @property
     def _constructor(self):
         return ClusteredSamples
+
+    def _parent(self, cluster):
+        return self.cluster_tree[cluster]
 
     def _parents(self, cluster):
         """
@@ -1515,15 +1519,22 @@ class ClusteredSamples(NestedSamples):
             parents = [cluster] + parents
         return parents
 
+    def _siblings(self, cluster):
+        if cluster == 0:
+            return [0]
+        parent = self._parent(cluster)
+        return [c for c, p in self.cluster_tree.items()
+                if p == parent and c != 0]
+
     def _in_same_cluster(self, i, j):
-        return i in self._parents(j) or j in self._parents(i)
+        return i == j or i in self._parents(j) or j in self._parents(i)
 
     def _cluster(self, i):
         """Return NestedSamples for just a particular cluster."""
-        if i in self.cluster_tree.values():
-            raise ValueError(f"Cluster {i} is not a leaf.")
+        # if i in self.cluster_tree.values():
+        # raise ValueError(f"Cluster {i} is not a leaf.")
         cs = self[[self._in_same_cluster(ii, i) for ii in self["cluster"]]]
-        return NestedSamples(cs).recompute()
+        return cs
 
     def clusters(self):
         """Return list of NestedSamples for each cluster."""
@@ -1533,18 +1544,46 @@ class ClusteredSamples(NestedSamples):
                 list(set(self.cluster_tree.keys())
                      - set(self.cluster_tree.values()))]
 
-    def logZi(self, i, nsamples=None, beta=None):
-        """Log-Evidence for a specific cluster."""
-        cs = self._cluster(i)
-        logw = self.logw(nsamples, beta)
-        idx = [ii in self._parents(i) for ii in self["cluster"]]
-        logw = logw[idx]
-        b = np.ones_like(logw)
-        for p in self._parents(i):
-            idx = [ii in self._parents(p)[:-1] for ii in cs["cluster"]]
-            b[idx] *= self.cluster_fractions[p-1]
+    def _alpha(self, child, parent):
 
-        logZ = logsumexp(logw, axis=0)  # , b=b)
+        if child == parent:
+            return 1
+
+        child_cluster = self._cluster(child)
+        child_cluster = child_cluster[
+            (child_cluster.cluster >= child).to_numpy()]
+        n_child = child_cluster.nlive.iloc[0]
+
+        siblings = self._siblings(child)
+        sibling_clusters = [self._cluster(s) for s in self._siblings(child)]
+        sibling_clusters = [
+            sc[(sc.cluster >= s).to_numpy()]
+            for sc, s in zip(sibling_clusters, siblings)
+        ]
+
+        n_siblings = sum([sc.nlive.iloc[0] for sc in sibling_clusters])
+
+        alpha = n_child / n_siblings
+
+        if self._parent(child) != parent:
+            return alpha * self.alpha(self._parent(child), parent)
+        print(f'{child=} {parent=} {alpha=}')
+        return alpha
+
+    def logZi(self, cluster=None, nsamples=None, beta=None):
+        """Log-Evidence for a specific cluster."""
+        if cluster is None:
+            return super().logZ(nsamples=None, beta=None)
+
+        samples = self._cluster(cluster)
+        logw = samples.logw(nsamples, beta)
+        alpha = np.ones_like(logw)
+        for parent in self._parents(cluster):
+            alpha[samples.cluster == parent] = self._alpha(cluster, parent)
+        print(f'{alpha=}')
+        alpha = self._alpha(cluster, 0)
+        logw = logw + np.log(alpha)
+        logZ = logsumexp(logw, axis=0)
 
         if np.isscalar(logZ):
             return logZ
