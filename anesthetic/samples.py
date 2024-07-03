@@ -1598,7 +1598,7 @@ class ClusteredSamples(NestedSamples):
         leaves = list(filter(lambda k: k not in self.cluster_tree.values(),
                              self.cluster_tree.keys()))
         print(leaves)
-        return [cluster.logZ() for cluster in self.clusters()]
+        return [self.logZi(leaf) for leaf in leaves]
 
 
 adjust_docstrings(Samples.to_hdf, r'(pd|pandas)\.DataFrame', 'DataFrame')
