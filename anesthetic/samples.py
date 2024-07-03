@@ -1520,6 +1520,7 @@ class ClusteredSamples(NestedSamples):
         return parents
 
     def _siblings(self, cluster):
+        """Get the siblings (subclusters with the same parent) of cluster."""
         if cluster == 0:
             return [0]
         parent = self._parent(cluster)
@@ -1545,7 +1546,7 @@ class ClusteredSamples(NestedSamples):
                      - set(self.cluster_tree.values()))]
 
     def _alpha(self, child, parent):
-
+        """Factor to reduce sample weight."""
         if child == parent:
             return 1
 
