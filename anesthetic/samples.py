@@ -1319,18 +1319,14 @@ class NestedSamples(Samples):
                 nlive = np.zeros(len(self), dtype=int)
                 # NOTE: sets weights to 1
                 for c in np.unique(samples.cluster):
-                    print(f"{c=}")
                     same_cluster = [i for i in np.unique(samples.cluster)
                                     if samples._in_same_cluster(c, i)
                                     and i >= c]
-                    print(f"{same_cluster=}")
                     samples_c = samples[np.isin(samples.cluster, same_cluster)]
                     nlive_c = compute_nlive(
                         samples_c.logL,
                         samples_c.logL_birth
                     )
-                    print(samples.cluster == c)
-                    print(samples_c.cluster == c)
                     nlive[
                        (samples.cluster == c).to_numpy()
                     ] = nlive_c[
@@ -1568,7 +1564,6 @@ class ClusteredSamples(NestedSamples):
 
         if self._parent(child) != parent:
             return alpha * self.alpha(self._parent(child), parent)
-        print(f'{child=} {parent=} {alpha=}')
         return alpha
 
     def logZi(self, cluster=None, nsamples=None, beta=None):
@@ -1581,7 +1576,6 @@ class ClusteredSamples(NestedSamples):
         alpha = np.ones_like(logw)
         for parent in self._parents(cluster):
             alpha[samples.cluster == parent] = self._alpha(cluster, parent)
-        print(f'{alpha=}')
         alpha = self._alpha(cluster, 0)
         logw = logw + np.log(alpha)
         logZ = logsumexp(logw, axis=0)
@@ -1598,7 +1592,6 @@ class ClusteredSamples(NestedSamples):
         # first identify final clusters
         leaves = list(filter(lambda k: k not in self.cluster_tree.values(),
                              self.cluster_tree.keys()))
-        print(leaves)
         return [self.logZi(leaf, nsamples, beta) for leaf in leaves]
 
     def logZ(self, cluster=None, nsamples=None, beta=None):
