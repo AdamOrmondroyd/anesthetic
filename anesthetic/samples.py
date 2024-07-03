@@ -1628,7 +1628,7 @@ class ClusteredSamples(NestedSamples):
         """
         if cluster is not None:
             return self.logZi(cluster, nsamples, beta)
-        return logsumexp([self.logZs(nsamples, beta)], axis=0)
+        return logsumexp([self.logZs(nsamples, beta)], axis=0).squeeze()[()]
 
 
 adjust_docstrings(Samples.to_hdf, r'(pd|pandas)\.DataFrame', 'DataFrame')
